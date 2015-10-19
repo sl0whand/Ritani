@@ -1,0 +1,5 @@
+Hostname: attribution.cxg3u5tpgfux.us-east-1.rds.amazonaws.com
+port: 3306
+username: attrread
+pw: diamonds
+database: log_analysis
