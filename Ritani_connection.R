@@ -10,7 +10,7 @@ con<-dbConnect(MySQL(),
                dbname="log_analysis"
 )
 
-tables=dbListTables(con)
+
 
 tablename=tables[1]
 query1=paste0("SHOW TABLES LIKE '",tablename,"'")
@@ -20,7 +20,7 @@ dbGetQuery(con,query1)
 query1=paste("SELECT COUNT(*) FROM",tablename)
 dbGetQuery(con,query1)
 
-data=dbReadTable(con, tablename)
+# data=dbReadTable(con, tablename)
 
 # dbRemoveTable(con, " tablename ")
-dbDisconnect(con)
+# dbDisconnect(con)
