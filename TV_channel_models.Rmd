@@ -1,6 +1,6 @@
 ---
 title: "TV Channel Models"
-output: pdf_document
+output: html_document
 ---
 
 ```{r echo=FALSE, message=FALSE} 
@@ -73,10 +73,15 @@ plot(stl_obj)+title("Organic Seasonal Decomposition")
 ```{r echo=FALSE, message=FALSE}
 xreg_matrix<-model.matrix(formula(stepwise_model),data=sub_study)
 xreg_matrix=xreg_matrix[,-1]
-tv_arima=auto.arima(sub_study$organic,xreg=xreg_matrix,max.p=10)
 
+# tv_arima=Arima(sub_study$organic,order=c(1,1,0),xreg=xreg_matrix)
+
+tv_arima=auto.arima(sub_study$organic,xreg=xreg_matrix,max.p=10)
+summary(tv_arima)
 tv_arima_fcast=forecast(tv_arima,xreg=xreg_matrix)
 plot(tv_arima_fcast)
+
+
 tv_arima_R2=round(cor(fitted(tv_arima_fcast),sub_study$organic)^2,2)
 
 
@@ -85,9 +90,6 @@ tmp_df=rbind(tmp_df,tv_arima_R2)
 rownames(tmp_df)[length(rownames(tmp_df))]="R2"
 print(tmp_df)
 ```
-
-
-
 
 
 
@@ -178,7 +180,7 @@ rownames(tmp_df)[length(rownames(tmp_df))]="R2"
 print(tmp_df)
 ```
 
-Model diagnostics show strong autocorrelation in the data and evidence of seasonality. This suggests we build a model using the same tv spending coefficients isolating temporal factors.
+Model diagnostics show strong very little autocorrelation in the data nor seasonality. 
 
 ```{r echo=FALSE, message=FALSE,warning=FALSE}
 acf(stepwise_model$residuals,ylab="Correlation",main="Autocorrelation of Residuals")
@@ -189,25 +191,6 @@ acf(stepwise_model$residuals,ylab="Correlation",main="Autocorrelation of Residua
 stl_obj=stl(ts(sub_study$direct.home, frequency = 26), s.window="periodic",robust=TRUE)
 plot(stl_obj)+title("Direct Home Seasonal Decomposition")
 ```
-
-###Arima model with TV spend
-```{r echo=FALSE, message=FALSE}
-xreg_matrix<-model.matrix(formula(stepwise_model),data=sub_study)
-xreg_matrix=xreg_matrix[,-1]
-tv_arima=auto.arima(sub_study$direct.home,xreg=xreg_matrix,max.p=10)
-
-tv_arima_fcast=forecast(tv_arima,xreg=xreg_matrix)
-plot(tv_arima_fcast)
-tv_arima_R2=round(cor(fitted(tv_arima_fcast),sub_study$direct.home)^2,2)
-
-
-tmp_df=data.frame(coef(tv_arima))
-tmp_df=rbind(tmp_df,tv_arima_R2)
-rownames(tmp_df)[length(rownames(tmp_df))]="R2"
-print(tmp_df)
-```
-
-
 
 
 ## Paid Brand Channel
