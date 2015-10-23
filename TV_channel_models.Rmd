@@ -1,6 +1,6 @@
 ---
 title: "TV Channel Models"
-output: html_document
+output: pdf_document
 ---
 
 ```{r echo=FALSE, message=FALSE} 
@@ -33,28 +33,6 @@ sub_study$paid.brand.sessions=as.numeric(as.character(sub_study$paid.brand.sessi
 
 
 ## Organic Channel
-###Seasonal Decomposition
-```{r echo=FALSE, message=FALSE}
-stl_obj=stl(ts(sub_study$organic, frequency = 12),t.window=15,s.window="periodic",robust=TRUE)
-plot(stl_obj)+title("Organic Seasonal Decomposition")
-```
-
-###Arima model with TV spend
-```{r echo=FALSE, message=FALSE}
-tv_arima=auto.arima(sub_study$organic,xreg=c(sub_study$tv.spend))
-
-tv_arima_fcast=forecast(tv_arima,xreg=c(sub_study$tv.spend))
-plot(tv_arima_fcast)
-tv_arima_R2=round(cor(fitted(tv_arima_fcast),sub_study$organic)^2,2)
-
-
-tmp_df=data.frame(round(coef(tv_arima),3))
-tmp_df=rbind(tmp_df,tv_arima_R2)
-rownames(tmp_df)[length(rownames(tmp_df))]="R2"
-print(tmp_df)
-```
-
-
 ###2nd order polynomial fit
 ```{r echo=FALSE, message=FALSE}
 poly_fit=lm(data=sub_study,organic~tv.spend+I(tv.spend^2))
@@ -79,30 +57,43 @@ rownames(tmp_df)[length(rownames(tmp_df))]="R2"
 print(tmp_df)
 ```
 
+Model diagnostics show strong autocorrelation in the data and evidence of seasonality. This suggests we build a model using the same tv spending coefficients isolating temporal factors.
+
+```{r echo=FALSE, message=FALSE,warning=FALSE}
+acf(stepwise_model$residuals,ylab="Correlation",main="Autocorrelation of Residuals")
+```
 
 
-## Organic Home Channel
-###Seasonal Decomposition
 ```{r echo=FALSE, message=FALSE}
-stl_obj=stl(ts(sub_study$organic.home, frequency = 12),t.window=15,s.window="periodic",robust=TRUE)
-plot(stl_obj)+title("Organic Home Seasonal Decomposition")
+stl_obj=stl(ts(sub_study$organic, frequency = 26), s.window="periodic",robust=TRUE)
+plot(stl_obj)+title("Organic Seasonal Decomposition")
 ```
 
 ###Arima model with TV spend
 ```{r echo=FALSE, message=FALSE}
-tv_arima=auto.arima(sub_study$organic.home,xreg=c(sub_study$tv.spend))
+xreg_matrix<-model.matrix(formula(stepwise_model),data=sub_study)
+xreg_matrix=xreg_matrix[,-1]
+tv_arima=auto.arima(sub_study$organic,xreg=xreg_matrix,max.p=10)
 
-tv_arima_fcast=forecast(tv_arima,xreg=c(sub_study$tv.spend))
+tv_arima_fcast=forecast(tv_arima,xreg=xreg_matrix)
 plot(tv_arima_fcast)
-tv_arima_R2=round(cor(fitted(tv_arima_fcast),sub_study$organic.home)^2,2)
+tv_arima_R2=round(cor(fitted(tv_arima_fcast),sub_study$organic)^2,2)
 
 
-tmp_df=data.frame(round(coef(tv_arima),3))
+tmp_df=data.frame(coef(tv_arima))
 tmp_df=rbind(tmp_df,tv_arima_R2)
 rownames(tmp_df)[length(rownames(tmp_df))]="R2"
 print(tmp_df)
 ```
 
+
+
+
+
+
+
+
+## Organic Home Channel
 
 ###2nd order polynomial fit
 ```{r echo=FALSE, message=FALSE}
@@ -113,6 +104,7 @@ tmp_df=rbind(tmp_df,cor(fitted(poly_fit),sub_study$organic.home)^2)
 rownames(tmp_df)[length(rownames(tmp_df))]="R2"
 print(tmp_df)
 ```
+
 
 
 ###Stepwise polynomial fit
@@ -129,29 +121,39 @@ print(tmp_df)
 ```
 
 
-## Direct Home Channel
-###Seasonal Decomposition
+Model diagnostics show strong autocorrelation in the data and evidence of seasonality. This suggests we build a model using the same tv spending coefficients isolating temporal factors.
+
+```{r echo=FALSE, message=FALSE,warning=FALSE}
+acf(stepwise_model$residuals,ylab="Correlation",main="Autocorrelation of Residuals")
+```
+
 ```{r echo=FALSE, message=FALSE}
-stl_obj=stl(ts(sub_study$direct.home, frequency = 12),t.window=15,s.window="periodic",robust=TRUE)
-plot(stl_obj)+title("Direct Home Seasonal Decomposition")
+stl_obj=stl(ts(sub_study$organic.home, frequency = 26), s.window="periodic",robust=TRUE)
+plot(stl_obj)+title("Organic Home Seasonal Decomposition")
 ```
 
 ###Arima model with TV spend
 ```{r echo=FALSE, message=FALSE}
-tv_arima=auto.arima(sub_study$direct.home,xreg=c(sub_study$tv.spend))
+xreg_matrix<-model.matrix(formula(stepwise_model),data=sub_study)
+xreg_matrix=xreg_matrix[,-1]
 
-tv_arima_fcast=forecast(tv_arima,xreg=c(sub_study$tv.spend))
+tv_arima=auto.arima(sub_study$organic.home,xreg=xreg_matrix,max.p=10)
+
+tv_arima_fcast=forecast(tv_arima,xreg=xreg_matrix)
 plot(tv_arima_fcast)
-tv_arima_R2=round(cor(fitted(tv_arima_fcast),sub_study$direct.home)^2,2)
+tv_arima_R2=round(cor(fitted(tv_arima_fcast),sub_study$organic.home)^2,2)
 
 
-tmp_df=data.frame(round(coef(tv_arima),3))
+tmp_df=data.frame(coef(tv_arima))
 tmp_df=rbind(tmp_df,tv_arima_R2)
 rownames(tmp_df)[length(rownames(tmp_df))]="R2"
 print(tmp_df)
 ```
 
 
+
+
+## Direct Home Channel
 ###2nd order polynomial fit
 ```{r echo=FALSE, message=FALSE}
 poly_fit=lm(data=sub_study,direct.home~tv.spend+I(tv.spend^2))
@@ -176,28 +178,39 @@ rownames(tmp_df)[length(rownames(tmp_df))]="R2"
 print(tmp_df)
 ```
 
-## Paid Brand Channel
-###Seasonal Decomposition
+Model diagnostics show strong autocorrelation in the data and evidence of seasonality. This suggests we build a model using the same tv spending coefficients isolating temporal factors.
+
+```{r echo=FALSE, message=FALSE,warning=FALSE}
+acf(stepwise_model$residuals,ylab="Correlation",main="Autocorrelation of Residuals")
+```
+
+
 ```{r echo=FALSE, message=FALSE}
-stl_obj=stl(ts(sub_study$paid.brand.sessions, frequency = 12),t.window=15,s.window="periodic",robust=TRUE)
-plot(stl_obj)+title("Paid Brand Decomposition")
+stl_obj=stl(ts(sub_study$direct.home, frequency = 26), s.window="periodic",robust=TRUE)
+plot(stl_obj)+title("Direct Home Seasonal Decomposition")
 ```
 
 ###Arima model with TV spend
 ```{r echo=FALSE, message=FALSE}
-tv_arima=auto.arima(sub_study$paid.brand.sessions,xreg=c(sub_study$tv.spend))
+xreg_matrix<-model.matrix(formula(stepwise_model),data=sub_study)
+xreg_matrix=xreg_matrix[,-1]
+tv_arima=auto.arima(sub_study$direct.home,xreg=xreg_matrix,max.p=10)
 
-tv_arima_fcast=forecast(tv_arima,xreg=c(sub_study$tv.spend))
+tv_arima_fcast=forecast(tv_arima,xreg=xreg_matrix)
 plot(tv_arima_fcast)
-tv_arima_R2=round(cor(fitted(tv_arima_fcast),sub_study$paid.brand.sessions)^2,2)
+tv_arima_R2=round(cor(fitted(tv_arima_fcast),sub_study$direct.home)^2,2)
 
 
-tmp_df=data.frame(round(coef(tv_arima),3))
+tmp_df=data.frame(coef(tv_arima))
 tmp_df=rbind(tmp_df,tv_arima_R2)
 rownames(tmp_df)[length(rownames(tmp_df))]="R2"
 print(tmp_df)
 ```
 
+
+
+
+## Paid Brand Channel
 
 ###2nd order polynomial fit
 ```{r echo=FALSE, message=FALSE}
@@ -222,4 +235,36 @@ tmp_df=rbind(tmp_df,cor(fitted(stepwise_model),sub_study$paid.brand.sessions)^2)
 rownames(tmp_df)[length(rownames(tmp_df))]="R2"
 print(tmp_df)
 ```
+
+
+Model diagnostics show strong autocorrelation in the data and evidence of seasonality. This suggests we build a model using the same tv spending coefficients isolating temporal factors.
+
+```{r echo=FALSE, message=FALSE,warning=FALSE}
+acf(stepwise_model$residuals,ylab="Correlation",main="Autocorrelation of Residuals")
+```
+
+
+```{r echo=FALSE, message=FALSE}
+stl_obj=stl(ts(sub_study$paid.brand.sessions, frequency = 26), s.window="periodic",robust=TRUE)
+plot(stl_obj)+title("Paid Brand Decomposition")
+```
+
+###Arima model with TV spend
+```{r echo=FALSE, message=FALSE}
+xreg_matrix<-model.matrix(formula(stepwise_model),data=sub_study)
+xreg_matrix=xreg_matrix[,-1]
+tv_arima=auto.arima(sub_study$paid.brand.sessions,xreg=xreg_matrix,max.p=10)
+
+tv_arima_fcast=forecast(tv_arima,xreg=xreg_matrix)
+plot(tv_arima_fcast)
+tv_arima_R2=round(cor(fitted(tv_arima_fcast),sub_study$paid.brand.sessions)^2,2)
+
+
+tmp_df=data.frame(coef(tv_arima))
+tmp_df=rbind(tmp_df,tv_arima_R2)
+rownames(tmp_df)[length(rownames(tmp_df))]="R2"
+print(tmp_df)
+```
+
+
 

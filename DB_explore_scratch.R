@@ -1,4 +1,5 @@
 
+source("Ritani_log_analysis_DB_connection.R")
 tables=dbListTables(con)
 
 

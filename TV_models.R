@@ -7,6 +7,8 @@ library(gridExtra)
 library(forecast)
 library(stats)
 
+library(glmnet)
+
 tv_data=tbl_df(read.xlsx("tvanalysis.xlsx",sheet=2,rows=c(1:95),cols=c(1,4:20)))
 tv_data$date=as.Date(as.character(tv_data$date),"%m/%d/%Y")+years(2000)
 na_inds=which(is.na(tv_data$date))
@@ -22,13 +24,13 @@ sub_study$paid.brand.sessions=as.numeric(as.character(sub_study$paid.brand.sessi
 
 
 ####organic
-stl_obj=stl(ts(sub_study$organic, frequency = 20),t.window=15,s.window="periodic",robust=TRUE)
+stl_obj=stl(ts(sub_study$organic, frequency = 26), s.window="periodic",robust=TRUE)
 plot(stl_obj)+title("Organic Seasonal Decomposition")
 
 #Arima model with TV spend
-tv_arima=auto.arima(sub_study$organic,xreg=c(sub_study$tv.spend))
+tv_arima=auto.arima(sub_study$organic,xreg=c(sub_study$tv.spend),max.p=10)
 coef(tv_arima)
-tv_arima_fcast=forecast(tv_arima,xreg=c(sub_study$tv.spend))
+tv_arima_fcast=forecast(tv_arima,xreg=c(sub_study$tv.spend),h=1)
 plot(tv_arima_fcast)
 tv_arima_R2=round(cor(fitted(tv_arima_fcast),sub_study$organic)^2,2)
 tv_arima_R2
@@ -43,7 +45,6 @@ plot(poly_fit)
 big_poly_fit=lm(data=sub_study,organic~tv.spend+I(tv.spend^2)+I(tv.spend^3)+I(tv.spend^4))
 summary(big_poly_fit)
 stepwise_model=step(big_poly_fit,k=log(nrow(mtcars)))
-summary(stepwise_model)
 
 anova(big_poly_fit,stepwise_model, test="Chi")
 #high p-value implies the smaller models is best
@@ -51,11 +52,11 @@ anova(big_poly_fit,stepwise_model, test="Chi")
 
 
 ####organic home
-stl_obj=stl(ts(sub_study$organic.home, frequency = 20),t.window=15,s.window="periodic",robust=TRUE)
+stl_obj=stl(ts(sub_study$organic.home, frequency = 20), s.window="periodic",robust=TRUE)
 plot(stl_obj)+title("Organic Home Seasonal Decomposition")
 
 #Arima model with TV spend
-tv_arima=auto.arima(sub_study$organic.home,xreg=c(sub_study$tv.spend))
+tv_arima=auto.arima(sub_study$organic.home,xreg=c(sub_study$tv.spend),max.p=10)
 coef(tv_arima)
 tv_arima_fcast=forecast(tv_arima,xreg=c(sub_study$tv.spend))
 plot(tv_arima_fcast)
@@ -70,16 +71,28 @@ big_poly_fit=lm(data=sub_study,organic.home~tv.spend+I(tv.spend^2)+I(tv.spend^3)
 summary(big_poly_fit)
 stepwise_model=step(big_poly_fit,k=log(nrow(mtcars)))
 summary(stepwise_model)
+# if (length(coef(stepwise_model))>2){
+#   formula(big_poly_fit)
+#   x<-model.matrix(formula(big_poly_fit),data=sub_study)
+#   x=x[,-1]
+#   
+#   glmnet1<-cv.glmnet(x=x,y=sub_study$organic,type.measure='mse',nfolds=5,alpha=1)
+#   c<-coef(glmnet1)
+#   inds<-which(c!=0)
+#   variables<-row.names(c)[inds]
+#   
+# }
+
 
 anova(big_poly_fit,stepwise_model, test="Chi")
 #low p-value implies the larger models makes no difference
 
 ####direct.home
-stl_obj=stl(ts(sub_study$direct.home, frequency = 20),t.window=15,s.window="periodic",robust=TRUE)
+stl_obj=stl(ts(sub_study$direct.home, frequency = 20), s.window="periodic",robust=TRUE)
 plot(stl_obj)+title("Direct Home Seasonal Decomposition")
 
 #Arima model with TV spend
-tv_arima=auto.arima(sub_study$direct.home,xreg=c(sub_study$tv.spend))
+tv_arima=auto.arima(sub_study$direct.home,xreg=c(sub_study$tv.spend),max.p=10)
 coef(tv_arima)
 tv_arima_fcast=forecast(tv_arima,xreg=c(sub_study$tv.spend))
 plot(tv_arima_fcast)
@@ -98,11 +111,11 @@ anova(big_poly_fit,stepwise_model, test="Chi")
 #high p-value implies the smaller models is best
 
 ####paid.brand.sessions
-stl_obj=stl(ts(sub_study$paid.brand.sessions, frequency = 20),t.window=15,s.window="periodic",robust=TRUE)
+stl_obj=stl(ts(sub_study$paid.brand.sessions, frequency = 20), s.window="periodic",robust=TRUE)
 plot(stl_obj)+title("Paid Brand Seasonal Decomposition")
 
 #Arima model with TV spend
-tv_arima=auto.arima(sub_study$paid.brand.sessions,xreg=c(sub_study$tv.spend))
+tv_arima=auto.arima(sub_study$paid.brand.sessions,xreg=c(sub_study$tv.spend),max.p=10)
 coef(tv_arima)
 tv_arima_fcast=forecast(tv_arima,xreg=c(sub_study$tv.spend))
 plot(tv_arima_fcast)
