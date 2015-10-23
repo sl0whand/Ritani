@@ -3,3 +3,8 @@ port: 3306
 username: attrread
 pw: diamonds
 database: log_analysis
+
+
+Host: production-read-replica-3.cxg3u5tpgfux.us-east-1.rds.amazonaws.com
+Username: readonly
+pw: diamonds

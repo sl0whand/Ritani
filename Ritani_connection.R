@@ -11,14 +11,14 @@ con<-dbConnect(MySQL(),
 )
 
 
-
-tablename=tables[1]
-query1=paste0("SHOW TABLES LIKE '",tablename,"'")
-dbGetQuery(con,query1)
+# tables=dbListTables(con)
+# tablename=tables[1]
+# query1=paste0("SHOW TABLES LIKE '",tablename,"'")
+# dbGetQuery(con,query1)
 
 # dbWriteTable(con, "tablename", dataframe, overwrite = TRUE)
-query1=paste("SELECT COUNT(*) FROM",tablename)
-dbGetQuery(con,query1)
+# query1=paste("SELECT COUNT(*) FROM",tablename)
+# dbGetQuery(con,query1)
 
 # data=dbReadTable(con, tablename)
 

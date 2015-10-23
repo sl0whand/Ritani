@@ -1,0 +1,225 @@
+---
+title: "TV Channel Models"
+output: html_document
+---
+
+```{r echo=FALSE, message=FALSE} 
+library(tidyr)
+library(dplyr)
+library(openxlsx)
+library(lubridate)
+library(ggplot2)
+library(gridExtra)
+library(forecast)
+library(stats)
+library(pander)
+```
+
+
+
+````{r echo=FALSE, message=FALSE}
+tv_data=tbl_df(read.xlsx("tvanalysis.xlsx",sheet=2,rows=c(1:95),cols=c(1,4:20)))
+tv_data$date=as.Date(as.character(tv_data$date),"%m/%d/%Y")+years(2000)
+na_inds=which(is.na(tv_data$date))
+for (ind in na_inds) {tv_data$date[ind]=tv_data$date[(ind-1)]+weeks(1)}
+
+#Subsetting data
+study_vars=c("date","tv.spend","organic","organic.home","direct.home","paid.brand.sessions")
+study_cols=which(names(tv_data) %in% study_vars)
+sub_study=na.omit(tv_data[,study_cols]  %>% arrange(desc(date)))
+sub_study=sub_study[-1,]
+sub_study$paid.brand.sessions=as.numeric(as.character(sub_study$paid.brand.sessions))
+```
+
+
+## Organic Channel
+###Seasonal Decomposition
+```{r echo=FALSE, message=FALSE}
+stl_obj=stl(ts(sub_study$organic, frequency = 12),t.window=15,s.window="periodic",robust=TRUE)
+plot(stl_obj)+title("Organic Seasonal Decomposition")
+```
+
+###Arima model with TV spend
+```{r echo=FALSE, message=FALSE}
+tv_arima=auto.arima(sub_study$organic,xreg=c(sub_study$tv.spend))
+
+tv_arima_fcast=forecast(tv_arima,xreg=c(sub_study$tv.spend))
+plot(tv_arima_fcast)
+tv_arima_R2=round(cor(fitted(tv_arima_fcast),sub_study$organic)^2,2)
+
+
+tmp_df=data.frame(round(coef(tv_arima),3))
+tmp_df=rbind(tmp_df,tv_arima_R2)
+rownames(tmp_df)[length(rownames(tmp_df))]="R2"
+print(tmp_df)
+```
+
+
+###2nd order polynomial fit
+```{r echo=FALSE, message=FALSE}
+poly_fit=lm(data=sub_study,organic~tv.spend+I(tv.spend^2))
+
+tmp_df=data.frame(round(coef(poly_fit),3))
+tmp_df=rbind(tmp_df,cor(fitted(poly_fit),sub_study$organic)^2)
+rownames(tmp_df)[length(rownames(tmp_df))]="R2"
+print(tmp_df)
+```
+
+
+###Stepwise polynomial fit
+```{r echo=FALSE, message=FALSE, results="hide"}
+big_poly_fit=lm(data=sub_study,organic~tv.spend+I(tv.spend^2)+I(tv.spend^3)+I(tv.spend^4))
+stepwise_model=step(big_poly_fit,k=log(nrow(mtcars)))
+```
+
+```{r echo=FALSE, message=FALSE}
+tmp_df=data.frame(round(coef(stepwise_model),3))
+tmp_df=rbind(tmp_df,cor(fitted(stepwise_model),sub_study$organic)^2)
+rownames(tmp_df)[length(rownames(tmp_df))]="R2"
+print(tmp_df)
+```
+
+
+
+## Organic Home Channel
+###Seasonal Decomposition
+```{r echo=FALSE, message=FALSE}
+stl_obj=stl(ts(sub_study$organic.home, frequency = 12),t.window=15,s.window="periodic",robust=TRUE)
+plot(stl_obj)+title("Organic Home Seasonal Decomposition")
+```
+
+###Arima model with TV spend
+```{r echo=FALSE, message=FALSE}
+tv_arima=auto.arima(sub_study$organic.home,xreg=c(sub_study$tv.spend))
+
+tv_arima_fcast=forecast(tv_arima,xreg=c(sub_study$tv.spend))
+plot(tv_arima_fcast)
+tv_arima_R2=round(cor(fitted(tv_arima_fcast),sub_study$organic.home)^2,2)
+
+
+tmp_df=data.frame(round(coef(tv_arima),3))
+tmp_df=rbind(tmp_df,tv_arima_R2)
+rownames(tmp_df)[length(rownames(tmp_df))]="R2"
+print(tmp_df)
+```
+
+
+###2nd order polynomial fit
+```{r echo=FALSE, message=FALSE}
+poly_fit=lm(data=sub_study,organic.home~tv.spend+I(tv.spend^2))
+
+tmp_df=data.frame(round(coef(poly_fit),3))
+tmp_df=rbind(tmp_df,cor(fitted(poly_fit),sub_study$organic.home)^2)
+rownames(tmp_df)[length(rownames(tmp_df))]="R2"
+print(tmp_df)
+```
+
+
+###Stepwise polynomial fit
+```{r echo=FALSE, message=FALSE, results="hide"}
+big_poly_fit=lm(data=sub_study,organic.home~tv.spend+I(tv.spend^2)+I(tv.spend^3)+I(tv.spend^4))
+stepwise_model=step(big_poly_fit,k=log(nrow(mtcars)))
+```
+
+```{r echo=FALSE, message=FALSE}
+tmp_df=data.frame(round(coef(stepwise_model),3))
+tmp_df=rbind(tmp_df,cor(fitted(stepwise_model),sub_study$organic.home)^2)
+rownames(tmp_df)[length(rownames(tmp_df))]="R2"
+print(tmp_df)
+```
+
+
+## Direct Home Channel
+###Seasonal Decomposition
+```{r echo=FALSE, message=FALSE}
+stl_obj=stl(ts(sub_study$direct.home, frequency = 12),t.window=15,s.window="periodic",robust=TRUE)
+plot(stl_obj)+title("Direct Home Seasonal Decomposition")
+```
+
+###Arima model with TV spend
+```{r echo=FALSE, message=FALSE}
+tv_arima=auto.arima(sub_study$direct.home,xreg=c(sub_study$tv.spend))
+
+tv_arima_fcast=forecast(tv_arima,xreg=c(sub_study$tv.spend))
+plot(tv_arima_fcast)
+tv_arima_R2=round(cor(fitted(tv_arima_fcast),sub_study$direct.home)^2,2)
+
+
+tmp_df=data.frame(round(coef(tv_arima),3))
+tmp_df=rbind(tmp_df,tv_arima_R2)
+rownames(tmp_df)[length(rownames(tmp_df))]="R2"
+print(tmp_df)
+```
+
+
+###2nd order polynomial fit
+```{r echo=FALSE, message=FALSE}
+poly_fit=lm(data=sub_study,direct.home~tv.spend+I(tv.spend^2))
+
+tmp_df=data.frame(round(coef(poly_fit),3))
+tmp_df=rbind(tmp_df,cor(fitted(poly_fit),sub_study$direct.home)^2)
+rownames(tmp_df)[length(rownames(tmp_df))]="R2"
+print(tmp_df)
+```
+
+
+###Stepwise polynomial fit
+```{r echo=FALSE, message=FALSE, results="hide"}
+big_poly_fit=lm(data=sub_study,direct.home~tv.spend+I(tv.spend^2)+I(tv.spend^3)+I(tv.spend^4))
+stepwise_model=step(big_poly_fit,k=log(nrow(mtcars)))
+```
+
+```{r echo=FALSE, message=FALSE}
+tmp_df=data.frame(round(coef(stepwise_model),3))
+tmp_df=rbind(tmp_df,cor(fitted(stepwise_model),sub_study$direct.home)^2)
+rownames(tmp_df)[length(rownames(tmp_df))]="R2"
+print(tmp_df)
+```
+
+## Paid Brand Channel
+###Seasonal Decomposition
+```{r echo=FALSE, message=FALSE}
+stl_obj=stl(ts(sub_study$paid.brand.sessions, frequency = 12),t.window=15,s.window="periodic",robust=TRUE)
+plot(stl_obj)+title("Paid Brand Decomposition")
+```
+
+###Arima model with TV spend
+```{r echo=FALSE, message=FALSE}
+tv_arima=auto.arima(sub_study$paid.brand.sessions,xreg=c(sub_study$tv.spend))
+
+tv_arima_fcast=forecast(tv_arima,xreg=c(sub_study$tv.spend))
+plot(tv_arima_fcast)
+tv_arima_R2=round(cor(fitted(tv_arima_fcast),sub_study$paid.brand.sessions)^2,2)
+
+
+tmp_df=data.frame(round(coef(tv_arima),3))
+tmp_df=rbind(tmp_df,tv_arima_R2)
+rownames(tmp_df)[length(rownames(tmp_df))]="R2"
+print(tmp_df)
+```
+
+
+###2nd order polynomial fit
+```{r echo=FALSE, message=FALSE}
+poly_fit=lm(data=sub_study,paid.brand.sessions~tv.spend+I(tv.spend^2))
+
+tmp_df=data.frame(round(coef(poly_fit),3))
+tmp_df=rbind(tmp_df,cor(fitted(poly_fit),sub_study$paid.brand.sessions)^2)
+rownames(tmp_df)[length(rownames(tmp_df))]="R2"
+print(tmp_df)
+```
+
+
+###Stepwise polynomial fit
+```{r echo=FALSE, message=FALSE, results="hide"}
+big_poly_fit=lm(data=sub_study,paid.brand.sessions~tv.spend+I(tv.spend^2)+I(tv.spend^3)+I(tv.spend^4))
+stepwise_model=step(big_poly_fit,k=log(nrow(mtcars)))
+```
+
+```{r echo=FALSE, message=FALSE}
+tmp_df=data.frame(round(coef(stepwise_model),3))
+tmp_df=rbind(tmp_df,cor(fitted(stepwise_model),sub_study$paid.brand.sessions)^2)
+rownames(tmp_df)[length(rownames(tmp_df))]="R2"
+print(tmp_df)
+```
+
