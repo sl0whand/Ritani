@@ -83,19 +83,28 @@ channel_sessions_long$tv.spend[which(is.na(channel_sessions_long$tv.spend))]=0
 
 
 ## Organic Channel
-
-study_var=channel_sessions_long[,grep("rganic",names(channel_sessions_long))][[1]]
+i=2
+vars=c("Branded Paid Search", "Direct", "Organic Search")
+study_var=channel_sessions_long[,grep(vars[i],names(channel_sessions_long))][[1]]
 na_inds=which(is.na(study_var))
 tv=channel_sessions_long$tv.spend[-na_inds]
 study_var=na.omit(study_var)
 
-title_paste="Organic"
-
+title_paste=names(channel_sessions_long)[grep(vars[i],names(channel_sessions_long))]
+plot(study_var,tv)
+cor(study_var,tv)
 
 ###2nd order polynomial fit
 
 #frequency shoud be 52 (weeks per year), but we don't have two full periods
 ts_var=ts(study_var, frequency = 52)
+t=try(stl_obj=stl(ts_var, s.window="periodic",robust=TRUE))
+if (class(t)=="try-error") {
+  ts_var=ts(study_var, frequency = 26)
+  stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
+}
+plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
+
 
 poly_fit=lm(study_var~tv+I(tv^2))
 tmp_df=data.frame(round(coef(poly_fit),3))
@@ -108,7 +117,7 @@ pander(tmp_df)
 
 ###Stepwise polynomial fit
 
-big_poly_fit=lm(study_var~tv+I(tv^2)+I(tv^3)+I(tv^4))
+big_poly_fit=lm(study_var~tv+I(tv^2)+I(tv^3)+I(tv^4)+I(tv))
 stepwise_model=step(big_poly_fit,k=log(nrow(channel_sessions_long)),scope = list(lower = ~tv))
 
 tmp_df=data.frame(round(coef(stepwise_model),3))
@@ -145,11 +154,8 @@ qplot(channel_sessions_long$date[-na_inds],stepwise_model$residuals)+theme_bw()+
 ###Arima model with TV spend
 
 
-stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
-plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
-
 #Building exogeneous variables
-#  xreg_matrix<-model.matrix(formula(stepwise_model),data=sub_study)
+# xreg_matrix<-model.matrix(formula(stepwise_model),data=sub_study)
 # xreg_matrix=xreg_matrix[,-1]
 
 
@@ -161,35 +167,34 @@ plot(tv_arima_fcast)
 
 ##Attempting to build the arim simple enough for excel
 
-
-
-ar1=coef(tv_arima)[grep("ar1",names(coef(tv_arima)))]
-ma1=coef(tv_arima)[grep("ma1",names(coef(tv_arima)))]
+# ar1=coef(tv_arima)[grep("ar1",names(coef(tv_arima)))]
+# ma1=coef(tv_arima)[grep("ma1",names(coef(tv_arima)))]
 tv_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))]
-ste=sqrt(tv_arima$sigma2)
-
-man_pred=rep(NA,length(ts_var))
-for (i in 3:length(ts_var)){
-  #exogeneous part
-  tv_part=tv_coef*(tv[i]-(1+ar1)*tv[i-1]+ar1*tv[i-2])
-  
-  #Auto-regressive part
-  ar_part=(1+ar1)*ts_var[i-1]-ar1*ts_var[i-2]
-  
-  #Moving averagive part
-  et1=ts_var[i-1]-man_pred[i-1];  if (is.na(et1)) et1=0
-  ma_part=ma1*et1
-  
-  man_pred[i]=tv_part+ar_part+ma_part+ste
-}
-
-
-
-
-  
-man_pred[1:20]
-fitted(tv_arima)[1:20]
-
+# ste=sqrt(tv_arima$sigma2)
+# 
+# man_diff=rep(NA,length(ts_var))
+# ts_var_d1=c(NA,diff(ts_var,1))
+# for (i in 3:length(ts_var)){
+#   #exogeneous part
+#   # tv_part=tv_coef*(tv[i]-(1+ar1)*tv[i-1]+ar1*tv[i-2])
+#   tv_part=tv_coef*ts_var_d1[i]
+#   
+#   #Auto-regressive part
+#   # ar_part=(1+ar1)*ts_var_d1[i-1]-ar1*ts_var_d1[i-2]
+#   ar_part=ar1*ts_var_d1[i-1]
+#   
+#   #Moving averagive part
+#   et1=ts_var_d1[i-1]-man_pred[i-1];  if (is.na(et1)) et1=0
+#   ma_part=ma1*et1
+#   
+#   man_pred[i]=tv_part+ar_part+ma_part+ste
+# }
+# 
+# 
+#   
+# man_pred[1:20]
+# diff(ts_var_d1)[1:20]
+# diff(fitted(tv_arima))[1:20]
 
 
 #Building coefficient and R2 table
@@ -201,14 +206,14 @@ pander(tmp_df)
 
 
 
-
-
 qplot(study_var,fitted(poly_fit))+theme_bw()+ggtitle("2nd order Polynomial Fit")+
   xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
 qplot(study_var,fitted(stepwise_model))+theme_bw()+ggtitle("Stepwise Polynomial Fit")+
   xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
-qplot(study_var,as.vector(fitted(tv_arima)))+theme_bw()+ggtitle("ARIMA Fit")+
+qplot(study_var,as.vector(fitted(tv_arima)))+theme_bw()+ggtitle("ARIMAS Fit")+
   xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
+
+
 
 
 

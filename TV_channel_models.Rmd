@@ -43,20 +43,22 @@ sub_study$paid.brand.sessions=as.numeric(as.character(sub_study$paid.brand.sessi
 
 ```{r echo=FALSE, message=FALSE}
 #Removing redundant data
-sub_study$organic=sub_study$organic-sub_study$organic.home
-sub_study$direct.all=sub_study$direct.all-sub_study$direct.home
+sub_study$organic.net.home=sub_study$organic-sub_study$organic.home
+sub_study$direct.net.home=sub_study$direct.all-sub_study$direct.home
+sub_study$organic=NULL
+sub_study$direct.all=NULL
 
 ```
 
 ## Organic Channel
 
 ```{r echo=FALSE, message=FALSE}
-study_var=sub_study$organic
+study_var=sub_study$organic.net.home
 na_inds=which(is.na(study_var))
 tv=sub_study$tv.spend[-na_inds]
 study_var=na.omit(study_var)
 
-title_paste="Organic"
+title_paste="Organic Net Home"
 ```
 
 ###2nd order polynomial fit
@@ -114,7 +116,7 @@ qplot(sub_study$date[-na_inds],stepwise_model$residuals)+theme_bw()+
 
 ```
 
-###Arima model with TV spend
+###ARIMAX model with TV spend
 ```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
 
 stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
@@ -130,6 +132,7 @@ plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
 
 #Not allowing for seasonal component until we have two years of data
 tv_arima=auto.arima(ts_var,xreg=c(tv),max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE)
+
 # summary(tv_arima)
 # tv_arima_fcast=forecast(tv_arima,xreg=c(tv),h=0)
 # plot(tv_arima_fcast)
@@ -151,7 +154,7 @@ qplot(study_var,fitted(poly_fit))+theme_bw()+ggtitle("2nd order Polynomial Fit")
   xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
 qplot(study_var,fitted(stepwise_model))+theme_bw()+ggtitle("Stepwise Polynomial Fit")+
   xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
-qplot(study_var,as.vector(fitted(tv_arima)))+theme_bw()+ggtitle("ARIMA Fit")+
+qplot(study_var,as.vector(fitted(tv_arima)))+theme_bw()+ggtitle("ARIMAX Fit")+
   xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
 
 ```
@@ -222,7 +225,7 @@ qplot(sub_study$date[-na_inds],stepwise_model$residuals)+theme_bw()+
 
 ```
 
-###Arima model with TV spend
+###ARIMAX model with TV spend
 ```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
 
 stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
@@ -259,7 +262,7 @@ qplot(study_var,fitted(poly_fit))+theme_bw()+ggtitle("2nd order Polynomial Fit")
   xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
 qplot(study_var,fitted(stepwise_model))+theme_bw()+ggtitle("Stepwise Polynomial Fit")+
   xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
-qplot(study_var,as.vector(fitted(tv_arima)))+theme_bw()+ggtitle("ARIMA Fit")+
+qplot(study_var,as.vector(fitted(tv_arima)))+theme_bw()+ggtitle("ARIMAX Fit")+
   xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
 
 ```
@@ -268,12 +271,12 @@ qplot(study_var,as.vector(fitted(tv_arima)))+theme_bw()+ggtitle("ARIMA Fit")+
 ## Direct Channel
 
 ```{r echo=FALSE, message=FALSE}
-study_var=sub_study$direct.all
+study_var=sub_study$direct.net.home
 na_inds=which(is.na(study_var))
 tv=sub_study$tv.spend[-na_inds]
 study_var=na.omit(study_var)
 
-title_paste="Direct"
+title_paste="Direct Net Home"
 ```
 
 ###2nd order polynomial fit
@@ -331,7 +334,7 @@ qplot(sub_study$date[-na_inds],stepwise_model$residuals)+theme_bw()+
 
 ```
 
-###Arima model with TV spend
+###ARIMAX model with TV spend
 ```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
 
 stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
@@ -368,7 +371,7 @@ qplot(study_var,fitted(poly_fit))+theme_bw()+ggtitle("2nd order Polynomial Fit")
   xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
 qplot(study_var,fitted(stepwise_model))+theme_bw()+ggtitle("Stepwise Polynomial Fit")+
   xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
-qplot(study_var,as.vector(fitted(tv_arima)))+theme_bw()+ggtitle("ARIMA Fit")+
+qplot(study_var,as.vector(fitted(tv_arima)))+theme_bw()+ggtitle("ARIMAX Fit")+
   xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
 
 ```
@@ -439,7 +442,7 @@ qplot(sub_study$date[-na_inds],stepwise_model$residuals)+theme_bw()+
 
 ```
 
-###Arima model with TV spend
+###ARIMAX model with TV spend
 ```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
 
 stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
@@ -476,7 +479,7 @@ qplot(study_var,fitted(poly_fit))+theme_bw()+ggtitle("2nd order Polynomial Fit")
   xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
 qplot(study_var,fitted(stepwise_model))+theme_bw()+ggtitle("Stepwise Polynomial Fit")+
   xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
-qplot(study_var,as.vector(fitted(tv_arima)))+theme_bw()+ggtitle("ARIMA Fit")+
+qplot(study_var,as.vector(fitted(tv_arima)))+theme_bw()+ggtitle("ARIMAX Fit")+
   xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
 
 ```
@@ -548,7 +551,7 @@ qplot(sub_study$date[-na_inds],stepwise_model$residuals)+theme_bw()+
 
 ```
 
-###Arima model with TV spend
+###ARIMAX model with TV spend
 ```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
 
 stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
@@ -585,7 +588,7 @@ qplot(study_var,fitted(poly_fit))+theme_bw()+ggtitle("2nd order Polynomial Fit")
   xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
 qplot(study_var,fitted(stepwise_model))+theme_bw()+ggtitle("Stepwise Polynomial Fit")+
   xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
-qplot(study_var,as.vector(fitted(tv_arima)))+theme_bw()+ggtitle("ARIMA Fit")+
+qplot(study_var,as.vector(fitted(tv_arima)))+theme_bw()+ggtitle("ARIMAX Fit")+
   xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
 
 ```

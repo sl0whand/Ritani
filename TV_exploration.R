@@ -31,18 +31,25 @@ sub_study$paid.brand.sessions=as.numeric(as.character(sub_study$paid.brand.sessi
 
 
 #Removing redundant data
-sub_study$organic=sub_study$organic-sub_study$organic.home
-sub_study$direct.all=sub_study$direct.all-sub_study$direct.home
-
+sub_study$organic.net.home=sub_study$organic-sub_study$organic.home
+sub_study$direct.net.home=sub_study$direct.all-sub_study$direct.home
+sub_study$organic=NULL
+sub_study$direct.all=NULL
 
 #Correlations
-cor(sub_study[,sapply(sub_study,is.numeric)])[1,]
-vars<-c("organic","organic.home","direct","direct.home","paid.brand.sessions")
+
+vars<-c("organic","organic.home","direct.all","direct.home","paid.brand.sessions")
 
 ccf.df=data.frame(Correlation=NULL,Lag=NULL,Source=NULL)
 for (var in vars) {
   ind=which(names(sub_study) == var)
-  ccf_temp<-ccf(sub_study$tv.spend,sub_study[,ind],plot=FALSE)
+  study_var=sub_study[,ind]
+  na_inds=which(is.na(study_var))
+  tv=sub_study$tv.spend[-na_inds]
+  study_var=na.omit(study_var)
+  
+  
+  ccf_temp<-ccf(tv,study_var,plot=FALSE)
   ccf_temp_df=data.frame(Correlation=ccf_temp$acf,Lag=ccf_temp$lag,Source=rep(var,length(ccf_temp$lag)))
   
   ccf.df<-rbind(ccf.df,ccf_temp_df)
@@ -50,11 +57,15 @@ for (var in vars) {
 
 CCF_plot<-ggplot(ccf.df,aes(x=Lag,y=Correlation,color=Source))+ theme_bw()+
   geom_point()+ggtitle("TV Spending Delayed Effect")+xlab("Lag (Weeks)")+
-  scale_color_manual( values=c("red","green","blue","purple"),
+  scale_color_manual( values=rainbow(length(vars)),
                       name="Source",
                       breaks=vars,
-                      labels=c("Organic", "Organic Home", "Direct Home","Paid Brand"))
+                      labels=vars)
 CCF_plot
+row.names(ccf.df)=NULL
+ccf.df[which(ccf.df$Lag==0),c(1,3)]
+
+# ggplotly(CCF_plot)
 
 
 ## Organic Channel
