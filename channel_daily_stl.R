@@ -8,10 +8,11 @@ library(forecast)
 library(stats)
 library(pander)
 library(TTR)
-
+library(googlesheets)
 
 ##pulling older daily session data
-channel_sessions_long=tbl_df(read.xlsx("channeldata_with_home.xlsx",sheet=1))
+a=gs_title("channeldata with home")
+channel_sessions_long=a %>% gs_read(ws = "gadata")
 channel_sessions_long=channel_sessions_long %>% rename(channel=channelGrouping)
 #converting date
 channel_sessions_long$date=as.Date(paste(substr(as.character(channel_sessions_long$date),5,6),
@@ -20,7 +21,7 @@ channel_sessions_long$date=as.Date(paste(substr(as.character(channel_sessions_lo
                                          sep="-"), "%m-%d-%Y")
 
 #removing garbage vars
-rm_vars=c("pageviews","X5")
+rm_vars=c("pageviews","X")
 rm_cols=which(names(channel_sessions_long) %in% rm_vars)
 channel_sessions_long=channel_sessions_long[,-rm_cols]
 
@@ -52,15 +53,15 @@ if (class(t)=="try-error") {
 plot(stl_obj)
 
 #arima model
-arima=auto.arima(ts_var,max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE)
+arima=auto.arima(ts_var,allowdrift=FALSE)
 summary(arima)
 #forecasting 28 days
 arima_fcast=forecast(arima,h=28)
-plot(arima_fcast)+title(paste(title_paste,"Seasonal Trend Decomposition"))
+plot(arima_fcast)
 
 
-tv_arima_R2=round(cor(fitted(tv_arima),ts_var)^2,2)
-tmp_df=data.frame(coef(tv_arima))
-tmp_df=rbind(tmp_df,tv_arima_R2)
+arima_R2=round(cor(fitted(arima),ts_var)^2,2)
+tmp_df=data.frame(coef(arima))
+tmp_df=rbind(tmp_df,arima_R2)
 rownames(tmp_df)[length(rownames(tmp_df))]="R2"
 pander(tmp_df)

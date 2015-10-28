@@ -14,11 +14,13 @@ library(forecast)
 library(stats)
 library(pander)
 library(TTR)
+library(googlesheets)
 ```
 
 
 
 ```{r echo=FALSE, message=FALSE}
+#pulling TV spend data
 tv_data=tbl_df(read.xlsx("tvanalysis.xlsx",sheet=2,rows=c(1:95),cols=c(1,4:20)))
 tv_data$date=as.Date(as.character(tv_data$date),"%m/%d/%Y")+years(2000)
 na_inds=which(is.na(tv_data$date))
@@ -26,39 +28,100 @@ na_inds=which(is.na(tv_data$date))
 for (ind in na_inds) {tv_data$date[ind]=tv_data$date[(ind-1)]+weeks(1)}
 
 #Subsetting data
-study_vars=c("date","tv.spend","organic","organic.home","direct.home","paid.brand.sessions","direct.all")
+study_vars=c("date","tv.spend")
 study_cols=which(names(tv_data) %in% study_vars)
 sub_study=tv_data[,study_cols]  %>% arrange(desc(date))
-sub_study$tv.spend[which(is.na(sub_study$tv.spend))]=0
 
 
-sub_study$tv.spend=as.numeric(as.character(sub_study$tv.spend))
-sub_study$organic=as.numeric(as.character(sub_study$organic))
-sub_study$organic.home=as.numeric(as.character(sub_study$organic.home))
-sub_study$direct.all=as.numeric(as.character(sub_study$direct.all))
-sub_study$direct.home=as.numeric(as.character(sub_study$direct.home))
-sub_study$paid.brand.sessions=as.numeric(as.character(sub_study$paid.brand.sessions))
+##pulling older daily session data
+a=gs_title("channeldata with home")
+gs_channeldata=a %>% gs_read(ws = "channeldata")
+gs_channeldataroot=a %>% gs_read(ws = "channeldataroot")
+channel_home_levels=levels(as.factor(gs_channeldataroot$ga.channelGrouping))
+# replacing channel names
+for (lev in channel_home_levels) {
+  swap_inds=which(gs_channeldataroot$ga.channelGrouping==lev)
+  gs_channeldataroot$ga.channelGrouping[swap_inds]=paste(gs_channeldataroot$ga.channelGrouping[swap_inds],"home",sep=".")
+  
+}
+gs_channeldataroot[,3]=NULL
+channel_sessions_long=rbind(gs_channeldata,gs_channeldataroot)
+channel_sessions_long[,4]=NULL
+channel_sessions_long=channel_sessions_long %>% rename(date=ga.date)
+channel_sessions_long=channel_sessions_long %>% rename(channel=ga.channelGrouping)
+channel_sessions_long=channel_sessions_long %>% rename(sessions=ga.sessions)
+# channel_sessions_long=tbl_df(read.xlsx("channeldata_with_home.xlsx",sheet=1))
 
-```
+#converting date
+channel_sessions_long$date=as.Date(paste(substr(as.character(channel_sessions_long$date),5,6),
+                                         substr(as.character(channel_sessions_long$date),7,8),
+                                         substr(as.character(channel_sessions_long$date),1,4),
+                                         sep="-"), "%m-%d-%Y")
 
-```{r echo=FALSE, message=FALSE}
-#Removing redundant data
-sub_study$organic.net.home=sub_study$organic-sub_study$organic.home
-sub_study$direct.net.home=sub_study$direct.all-sub_study$direct.home
-sub_study$organic=NULL
-sub_study$direct.all=NULL
+#appending tv spend
+channel_sessions_long=rbind(channel_sessions_long,
+                            sub_study %>% select(tv.spend,date) %>% 
+                              rename(sessions=tv.spend) %>% 
+                              mutate(channel="tv.spend"))
+
+
+channel_sessions_long$year=strftime(channel_sessions_long$date,format="%y") 
+channel_sessions_long$week=strftime(channel_sessions_long$date,format="%W") 
+channel_sessions_long$date=as.Date(strptime(paste(channel_sessions_long$year,
+                                                  (as.numeric(channel_sessions_long$week)*7),
+                                                  sep=" "),format="%Y %j") +years(2000))
+
+
+
+channel_sessions_long=channel_sessions_long %>% group_by(channel,year,week) %>% 
+  summarise(sessions=sum(sessions),date=first(date))
+# swapping in mondays
+for (i in which(is.na(channel_sessions_long$date))) {
+  channel_sessions_long$date[i]=channel_sessions_long$date[i+1]-weeks(1)
+}
+channel_sessions_long=channel_sessions_long %>% group_by(channel,year,week) %>% 
+  summarise(sessions=sum(sessions),date=first(date))
+
+
+rm_vars=c("year","week")
+rm_cols=which(names(channel_sessions_long) %in% rm_vars)
+channel_sessions_long=channel_sessions_long[,-rm_cols]
+
+
+#casting
+channel_sessions_long=channel_sessions_long %>% spread(key=channel,value=sessions)
+names(channel_sessions_long) <- sub(" ", ".", names(channel_sessions_long))
+
+#Replacing missing tv spend with 0
+channel_sessions_long$tv.spend[which(is.na(channel_sessions_long$tv.spend))]=0
+
+#fabricating variables
+channel_sessions_long$direct.net.home=channel_sessions_long$Direct-channel_sessions_long$Direct.home
+channel_sessions_long$direct.home=channel_sessions_long$Direct.home
+channel_sessions_long$organic.net.home=channel_sessions_long$Organic.Search-channel_sessions_long$Organic.Search.home
+channel_sessions_long$organic.home=channel_sessions_long$Organic.Search.home
+channel_sessions_long$paid.brand.sessions=channel_sessions_long$`Branded.Paid Search`
+  
+  
+
+study_vars=c("date","tv.spend","direct.net.home","direct.home",
+             "organic.net.home","organic.home",
+             "paid.brand.sessions")
+study_cols=which(names(channel_sessions_long) %in% study_vars)
+channel_sessions_long=channel_sessions_long[,study_cols]  %>% arrange(desc(date))
 
 ```
 
 ## Organic Channel
 
 ```{r echo=FALSE, message=FALSE}
-study_var=sub_study$organic.net.home
+study_var=channel_sessions_long$organic.net.home
 na_inds=which(is.na(study_var))
-tv=sub_study$tv.spend[-na_inds]
+tv=channel_sessions_long$tv.spend[-na_inds]
 study_var=na.omit(study_var)
 
 title_paste="Organic Net Home"
+
 ```
 
 ###2nd order polynomial fit
@@ -78,7 +141,7 @@ pander(tmp_df)
 ###Stepwise polynomial fit
 ```{r echo=FALSE, message=FALSE, results="hide"}
 big_poly_fit=lm(study_var~tv+I(tv^2)+I(tv^3)+I(tv^4))
-stepwise_model=step(big_poly_fit,k=log(nrow(sub_study)),scope = list(lower = ~tv))
+stepwise_model=step(big_poly_fit,k=log(nrow(channel_sessions_long)),scope = list(lower = ~tv))
 ```
 
 ```{r echo=FALSE, message=FALSE}
@@ -100,38 +163,25 @@ ggplot(tmp_df) + theme_bw()+
   guides(color=guide_legend(title="Models"))
 
 #This plot shows a major time trend component- implying previous models were useless
-qplot(sub_study$date[-na_inds],stepwise_model$residuals)+theme_bw()+
+qplot(channel_sessions_long$date[-na_inds],stepwise_model$residuals)+theme_bw()+
   ggtitle("Polynomial Fit Residuals")+xlab("Date")+ylab("Residuals")
 
-# #These plots shows a major auto-correlative component- we can include that in the model
-# acf(stepwise_model$residuals,ylab="Correlation",main="Autocorrelation of Residuals")
-# qplot(study_var,lag(study_var,n=1))+theme_bw()+
-#   ggtitle(paste(title_paste,"Sessions Lag Plot"))+xlab(paste(title_paste,"Sessions"))+
-#   ylab(paste(title_paste,"Sessions (Single Lag)"))
-# 
-# #These plots shows a difference component- we can include in the model
-# pacf(stepwise_model$residuals,ylab="Correlation",main="Partial Autocorrelation of Residuals")
-# qplot(sub_study$date[-na_inds][-1],diff(stepwise_model$residuals))+theme_bw()+
-#   ggtitle("Polynomial Fit Differenced Residuals")+xlab("Date")+ylab("First Difference Residuals")
 
 ```
 
 ###ARIMAX model with TV spend
 ```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
 
-# stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
-# plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
+stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
+plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
 ```
 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-#Building exogeneous variables
-#  xreg_matrix<-model.matrix(formula(stepwise_model),data=sub_study)
-# xreg_matrix=xreg_matrix[,-1]
-
 
 #Not allowing for seasonal component until we have two years of data
-tv_arima=auto.arima(ts_var,xreg=c(tv),max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE)
+tv_arima=auto.arima(ts_var,xreg=c(tv),max.q=0,max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE)
+
 
 summary(tv_arima)
 # tv_arima_fcast=forecast(tv_arima,xreg=c(tv),h=0)
@@ -162,9 +212,9 @@ qplot(study_var,as.vector(fitted(tv_arima)))+theme_bw()+ggtitle("ARIMAX Fit")+
 ## Organic Home Channel
 
 ```{r echo=FALSE, message=FALSE}
-study_var=sub_study$organic.home
+study_var=channel_sessions_long$organic.home
 na_inds=which(is.na(study_var))
-tv=sub_study$tv.spend[-na_inds]
+tv=channel_sessions_long$tv.spend[-na_inds]
 study_var=na.omit(study_var)
 
 title_paste="Organic Home"
@@ -187,7 +237,7 @@ pander(tmp_df)
 ###Stepwise polynomial fit
 ```{r echo=FALSE, message=FALSE, results="hide"}
 big_poly_fit=lm(study_var~tv+I(tv^2)+I(tv^3)+I(tv^4))
-stepwise_model=step(big_poly_fit,k=log(nrow(sub_study)),scope = list(lower = ~tv))
+stepwise_model=step(big_poly_fit,k=log(nrow(channel_sessions_long)),scope = list(lower = ~tv))
 ```
 
 ```{r echo=FALSE, message=FALSE}
@@ -209,42 +259,26 @@ ggplot(tmp_df) + theme_bw()+
   guides(color=guide_legend(title="Models"))
 
 #This plot shows a major time trend component- implying previous models were useless
-qplot(sub_study$date[-na_inds],stepwise_model$residuals)+theme_bw()+
+qplot(channel_sessions_long$date[-na_inds],stepwise_model$residuals)+theme_bw()+
   ggtitle("Polynomial Fit Residuals")+xlab("Date")+ylab("Residuals")
 
-# #These plots shows a major auto-correlative component- we can include that in the model
-# acf(stepwise_model$residuals,ylab="Correlation",main="Autocorrelation of Residuals")
-# qplot(study_var,lag(study_var,n=1))+theme_bw()+
-#   ggtitle(paste(title_paste,"Sessions Lag Plot"))+xlab(paste(title_paste,"Sessions"))+
-#   ylab(paste(title_paste,"Sessions (Single Lag)"))
-# 
-# #These plots shows a difference component- we can include in the model
-# pacf(stepwise_model$residuals,ylab="Correlation",main="Partial Autocorrelation of Residuals")
-# qplot(sub_study$date[-na_inds][-1],diff(stepwise_model$residuals))+theme_bw()+
-#   ggtitle("Polynomial Fit Differenced Residuals")+xlab("Date")+ylab("First Difference Residuals")
 
 ```
 
 ###ARIMAX model with TV spend
 ```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
 
-# stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
-# plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
+stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
+plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
 ```
 
-
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-#Building exogeneous variables
-#  xreg_matrix<-model.matrix(formula(stepwise_model),data=sub_study)
-# xreg_matrix=xreg_matrix[,-1]
-
 
 #Not allowing for seasonal component until we have two years of data
-tv_arima=auto.arima(ts_var,xreg=c(tv),max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE)
+tv_arima=auto.arima(ts_var,xreg=c(tv),max.q=0,max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE)
 summary(tv_arima)
 # tv_arima_fcast=forecast(tv_arima,xreg=c(tv),1)
 # plot(tv_arima_fcast)
-
 
 
 #Building coefficient and R2 table
@@ -271,9 +305,9 @@ qplot(study_var,as.vector(fitted(tv_arima)))+theme_bw()+ggtitle("ARIMAX Fit")+
 ## Direct Channel
 
 ```{r echo=FALSE, message=FALSE}
-study_var=sub_study$direct.net.home
+study_var=channel_sessions_long$direct.net.home
 na_inds=which(is.na(study_var))
-tv=sub_study$tv.spend[-na_inds]
+tv=channel_sessions_long$tv.spend[-na_inds]
 study_var=na.omit(study_var)
 
 title_paste="Direct Net Home"
@@ -296,7 +330,7 @@ pander(tmp_df)
 ###Stepwise polynomial fit
 ```{r echo=FALSE, message=FALSE, results="hide"}
 big_poly_fit=lm(study_var~tv+I(tv^2)+I(tv^3)+I(tv^4))
-stepwise_model=step(big_poly_fit,k=log(nrow(sub_study)),scope = list(lower = ~tv))
+stepwise_model=step(big_poly_fit,k=log(nrow(channel_sessions_long)),scope = list(lower = ~tv))
 ```
 
 ```{r echo=FALSE, message=FALSE}
@@ -318,38 +352,24 @@ ggplot(tmp_df) + theme_bw()+
   guides(color=guide_legend(title="Models"))
 
 #This plot shows a major time trend component- implying previous models were useless
-qplot(sub_study$date[-na_inds],stepwise_model$residuals)+theme_bw()+
+qplot(channel_sessions_long$date[-na_inds],stepwise_model$residuals)+theme_bw()+
   ggtitle("Polynomial Fit Residuals")+xlab("Date")+ylab("Residuals")
 
-# #These plots shows a major auto-correlative component- we can include that in the model
-# acf(stepwise_model$residuals,ylab="Correlation",main="Autocorrelation of Residuals")
-# qplot(study_var,lag(study_var,n=1))+theme_bw()+
-#   ggtitle(paste(title_paste,"Sessions Lag Plot"))+xlab(paste(title_paste,"Sessions"))+
-#   ylab(paste(title_paste,"Sessions (Single Lag)"))
-# 
-# #These plots shows a difference component- we can include in the model
-# pacf(stepwise_model$residuals,ylab="Correlation",main="Partial Autocorrelation of Residuals")
-# qplot(sub_study$date[-na_inds][-1],diff(stepwise_model$residuals))+theme_bw()+
-#   ggtitle("Polynomial Fit Differenced Residuals")+xlab("Date")+ylab("First Difference Residuals")
 
 ```
 
 ###ARIMAX model with TV spend
 ```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
 
-# stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
-# plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
+stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
+plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
 ```
 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-#Building exogeneous variables
-#  xreg_matrix<-model.matrix(formula(stepwise_model),data=sub_study)
-# xreg_matrix=xreg_matrix[,-1]
-
 
 #Not allowing for seasonal component until we have two years of data
-tv_arima=auto.arima(ts_var,xreg=c(tv),max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE)
+tv_arima=auto.arima(ts_var,xreg=c(tv),max.q=0,max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE)
 summary(tv_arima)
 # tv_arima_fcast=forecast(tv_arima,xreg=c(tv),h=0)
 # plot(tv_arima_fcast)
@@ -379,9 +399,9 @@ qplot(study_var,as.vector(fitted(tv_arima)))+theme_bw()+ggtitle("ARIMAX Fit")+
 ## Direcy Home Channel
 
 ```{r echo=FALSE, message=FALSE}
-study_var=sub_study$direct.home
+study_var=channel_sessions_long$direct.home
 na_inds=which(is.na(study_var))
-tv=sub_study$tv.spend[-na_inds]
+tv=channel_sessions_long$tv.spend[-na_inds]
 study_var=na.omit(study_var)
 
 title_paste="Direct Home"
@@ -404,7 +424,7 @@ pander(tmp_df)
 ###Stepwise polynomial fit
 ```{r echo=FALSE, message=FALSE, results="hide"}
 big_poly_fit=lm(study_var~tv+I(tv^2)+I(tv^3)+I(tv^4))
-stepwise_model=step(big_poly_fit,k=log(nrow(sub_study)),scope = list(lower = ~tv))
+stepwise_model=step(big_poly_fit,k=log(nrow(channel_sessions_long)),scope = list(lower = ~tv))
 ```
 
 ```{r echo=FALSE, message=FALSE}
@@ -426,38 +446,24 @@ ggplot(tmp_df) + theme_bw()+
   guides(color=guide_legend(title="Models"))
 
 #This plot shows a major time trend component- implying previous models were useless
-qplot(sub_study$date[-na_inds],stepwise_model$residuals)+theme_bw()+
+qplot(channel_sessions_long$date[-na_inds],stepwise_model$residuals)+theme_bw()+
   ggtitle("Polynomial Fit Residuals")+xlab("Date")+ylab("Residuals")
-# 
-# #These plots shows a major auto-correlative component- we can include that in the model
-# acf(stepwise_model$residuals,ylab="Correlation",main="Autocorrelation of Residuals")
-# qplot(study_var,lag(study_var,n=1))+theme_bw()+
-#   ggtitle(paste(title_paste,"Sessions Lag Plot"))+xlab(paste(title_paste,"Sessions"))+
-#   ylab(paste(title_paste,"Sessions (Single Lag)"))
-# 
-# #These plots shows a difference component- we can include in the model
-# pacf(stepwise_model$residuals,ylab="Correlation",main="Partial Autocorrelation of Residuals")
-# qplot(sub_study$date[-na_inds][-1],diff(stepwise_model$residuals))+theme_bw()+
-#   ggtitle("Polynomial Fit Differenced Residuals")+xlab("Date")+ylab("First Difference Residuals")
 
 ```
 
 ###ARIMAX model with TV spend
 ```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
 
-# stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
-# plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
+stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
+plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
 ```
 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-#Building exogeneous variables
-#  xreg_matrix<-model.matrix(formula(stepwise_model),data=sub_study)
-# xreg_matrix=xreg_matrix[,-1]
 
 
 #Not allowing for seasonal component until we have two years of data
-tv_arima=auto.arima(ts_var,xreg=c(tv),max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE)
+tv_arima=auto.arima(ts_var,xreg=c(tv),max.q=0,max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE)
 summary(tv_arima)
 # tv_arima_fcast=forecast(tv_arima,xreg=c(tv),h=0)
 # plot(tv_arima_fcast)
@@ -488,9 +494,9 @@ qplot(study_var,as.vector(fitted(tv_arima)))+theme_bw()+ggtitle("ARIMAX Fit")+
 ## Paid Brand Channel
 
 ```{r echo=FALSE, message=FALSE}
-study_var=sub_study$paid.brand.sessions
+study_var=channel_sessions_long$paid.brand.sessions
 na_inds=which(is.na(study_var))
-tv=sub_study$tv.spend[-na_inds]
+tv=channel_sessions_long$tv.spend[-na_inds]
 study_var=na.omit(study_var)
 
 title_paste="Paid Brand"
@@ -513,7 +519,7 @@ pander(tmp_df)
 ###Stepwise polynomial fit
 ```{r echo=FALSE, message=FALSE, results="hide"}
 big_poly_fit=lm(study_var~tv+I(tv^2)+I(tv^3)+I(tv^4))
-stepwise_model=step(big_poly_fit,k=log(nrow(sub_study)),scope = list(lower = ~tv))
+stepwise_model=step(big_poly_fit,k=log(nrow(channel_sessions_long)),scope = list(lower = ~tv))
 ```
 
 ```{r echo=FALSE, message=FALSE}
@@ -535,38 +541,24 @@ ggplot(tmp_df) + theme_bw()+
   guides(color=guide_legend(title="Models"))
 
 #This plot shows a major time trend component- implying previous models were useless
-qplot(sub_study$date[-na_inds],stepwise_model$residuals)+theme_bw()+
+qplot(channel_sessions_long$date[-na_inds],stepwise_model$residuals)+theme_bw()+
   ggtitle("Polynomial Fit Residuals")+xlab("Date")+ylab("Residuals")
-
-# #These plots shows a major auto-correlative component- we can include that in the model
-# acf(stepwise_model$residuals,ylab="Correlation",main="Autocorrelation of Residuals")
-# qplot(study_var,lag(study_var,n=1))+theme_bw()+
-#   ggtitle(paste(title_paste,"Sessions Lag Plot"))+xlab(paste(title_paste,"Sessions"))+
-#   ylab(paste(title_paste,"Sessions (Single Lag)"))
-# 
-# #These plots shows a difference component- we can include in the model
-# pacf(stepwise_model$residuals,ylab="Correlation",main="Partial Autocorrelation of Residuals")
-# qplot(sub_study$date[-na_inds][-1],diff(stepwise_model$residuals))+theme_bw()+
-#   ggtitle("Polynomial Fit Differenced Residuals")+xlab("Date")+ylab("First Difference Residuals")
 
 ```
 
 ###ARIMAX model with TV spend
 ```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
 
-# stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
-# plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
+stl_obj=try(stl(ts_var, s.window="periodic",robust=TRUE))
+if (class(stl_obj)!="try-error") plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
 ```
 
 
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-#Building exogeneous variables
-#  xreg_matrix<-model.matrix(formula(stepwise_model),data=sub_study)
-# xreg_matrix=xreg_matrix[,-1]
 
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 
 #Not allowing for seasonal component until we have two years of data
-tv_arima=auto.arima(ts_var,xreg=c(tv),max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE)
+tv_arima=auto.arima(ts_var,xreg=c(tv),max.q=0,max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE)
 summary(tv_arima)
 # tv_arima_fcast=forecast(tv_arima,xreg=c(tv),h=0)
 # plot(tv_arima_fcast)

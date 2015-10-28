@@ -9,8 +9,9 @@ library(stats)
 library(pander)
 library(TTR)
 library(googlesheets)
-
-
+################
+###Data Munging
+################
 #pulling TV spend data
 tv_data=tbl_df(read.xlsx("tvanalysis.xlsx",sheet=2,rows=c(1:95),cols=c(1,4:20)))
 tv_data$date=as.Date(as.character(tv_data$date),"%m/%d/%Y")+years(2000)
@@ -19,32 +20,35 @@ na_inds=which(is.na(tv_data$date))
 for (ind in na_inds) {tv_data$date[ind]=tv_data$date[(ind-1)]+weeks(1)}
 
 #Subsetting data
-study_vars=c("date","tv.spend","organic","organic.home","direct.home","paid.brand.sessions","direct.all")
+study_vars=c("date","tv.spend")
 study_cols=which(names(tv_data) %in% study_vars)
 sub_study=tv_data[,study_cols]  %>% arrange(desc(date))
 
 
-#Removing redundant data
-sub_study$organic=sub_study$organic-sub_study$organic.home
-sub_study$direct.all=sub_study$direct.all-sub_study$direct.home
-
-
 ##pulling older daily session data
 a=gs_title("channeldata with home")
-channel_sessions_long=a %>% gs_read(ws = "gadata")
-
+gs_channeldata=a %>% gs_read(ws = "channeldata")
+gs_channeldataroot=a %>% gs_read(ws = "channeldataroot")
+channel_home_levels=levels(as.factor(gs_channeldataroot$ga.channelGrouping))
+# replacing channel names
+for (lev in channel_home_levels) {
+  swap_inds=which(gs_channeldataroot$ga.channelGrouping==lev)
+  gs_channeldataroot$ga.channelGrouping[swap_inds]=paste(gs_channeldataroot$ga.channelGrouping[swap_inds],"home",sep=".")
+  
+}
+gs_channeldataroot[,3]=NULL
+channel_sessions_long=rbind(gs_channeldata,gs_channeldataroot)
+channel_sessions_long[,4]=NULL
+channel_sessions_long=channel_sessions_long %>% rename(date=ga.date)
+channel_sessions_long=channel_sessions_long %>% rename(channel=ga.channelGrouping)
+channel_sessions_long=channel_sessions_long %>% rename(sessions=ga.sessions)
 # channel_sessions_long=tbl_df(read.xlsx("channeldata_with_home.xlsx",sheet=1))
-channel_sessions_long=channel_sessions_long %>% rename(channel=channelGrouping)
+
 #converting date
 channel_sessions_long$date=as.Date(paste(substr(as.character(channel_sessions_long$date),5,6),
                                          substr(as.character(channel_sessions_long$date),7,8),
                                          substr(as.character(channel_sessions_long$date),1,4),
                                          sep="-"), "%m-%d-%Y")
-
-#removing garbage vars
-rm_vars=c("pageviews","X")
-rm_cols=which(names(channel_sessions_long) %in% rm_vars)
-channel_sessions_long=channel_sessions_long[,-rm_cols]
 
 #appending tv spend
 channel_sessions_long=rbind(channel_sessions_long,
@@ -75,30 +79,39 @@ rm_vars=c("year","week")
 rm_cols=which(names(channel_sessions_long) %in% rm_vars)
 channel_sessions_long=channel_sessions_long[,-rm_cols]
 
-#plot everything
-ggplot(channel_sessions_long) + theme_bw() +
-  geom_line(aes(x=date,y=sessions,color=channel))
-
 
 #casting
 channel_sessions_long=channel_sessions_long %>% spread(key=channel,value=sessions)
+names(channel_sessions_long) <- sub(" ", ".", names(channel_sessions_long))
 
+#Replacing missing tv spend with 0
 channel_sessions_long$tv.spend[which(is.na(channel_sessions_long$tv.spend))]=0
 
+#fabricating variables
+channel_sessions_long$direct.net.home=channel_sessions_long$Direct-channel_sessions_long$Direct.home
+channel_sessions_long$direct.home=channel_sessions_long$Direct.home
+channel_sessions_long$organic.net.home=channel_sessions_long$Organic.Search-channel_sessions_long$Organic.Search.home
+channel_sessions_long$organic.home=channel_sessions_long$Organic.Search.home
+channel_sessions_long$paid.brand.sessions=channel_sessions_long$`Branded.Paid Search`
+  
+  
 
+study_vars=c("date","tv.spend","direct.net.home","direct.home",
+             "organic.net.home","organic.home",
+             "paid.brand.sessions")
+study_cols=which(names(channel_sessions_long) %in% study_vars)
+channel_sessions_long=channel_sessions_long[,study_cols]  %>% arrange(desc(date))
 
+write.xlsx(channel_sessions_long, "tv_channel_analysis.xlsx")
 ## Organic Channel
-i=3
-vars=c("Branded Paid Search", "Direct", "Organic Search")
-study_var=channel_sessions_long[,grep(vars[i],names(channel_sessions_long))][[1]]
+i=5
+study_var=channel_sessions_long[,grep(study_vars[i],names(channel_sessions_long))][[1]]
 na_inds=which(is.na(study_var))
 tv=channel_sessions_long$tv.spend[-na_inds]
 study_var=study_var[-na_inds]
 
-title_paste=names(channel_sessions_long)[grep(vars[i],names(channel_sessions_long))]
-plot(tv,study_var)
-cor(tv,study_var)
-ccf(tv,study_var)
+title_paste=names(channel_sessions_long)[grep(study_vars[i],names(channel_sessions_long))]
+
 
 ###2nd order polynomial fit
 
@@ -144,19 +157,6 @@ ggplot(tmp_df) + theme_bw()+
 qplot(channel_sessions_long$date[-na_inds],stepwise_model$residuals)+theme_bw()+
   ggtitle("Polynomial Fit Residuals")+xlab("Date")+ylab("Residuals")
 
-#These plots shows a major auto-correlative component- we can include that in the model
-# acf(stepwise_model$residuals,ylab="Correlation",main="Autocorrelation of Residuals")
-# qplot(study_var,lag(study_var,n=1))+theme_bw()+
-  # ggtitle(paste(title_paste,"Sessions Lag Plot"))+xlab(paste(title_paste,"Sessions"))+
-  # ylab(paste(title_paste,"Sessions (Single Lag)"))
-
-#These plots shows a difference component- we can include in the model
-# pacf(stepwise_model$residuals,ylab="Correlation",main="Partial Autocorrelation of Residuals")
-# qplot(channel_sessions_long$date[-na_inds][-1],diff(stepwise_model$residuals))+theme_bw()+
-  # ggtitle("Polynomial Fit Differenced Residuals")+xlab("Date")+ylab("First Difference Residuals")
-
-
-
 ###Arima model with TV spend
 
 #Building exogeneous variables
@@ -165,44 +165,9 @@ qplot(channel_sessions_long$date[-na_inds],stepwise_model$residuals)+theme_bw()+
 
 
 #Not allowing for seasonal component until we have two years of data
-tv_arima=auto.arima(ts_var,xreg=c(tv),allowdrift=FALSE)
+tv_arima=auto.arima(ts_var,xreg=c(tv),max.q=0,max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE)
 summary(tv_arima)
 tv_arima_fcast=forecast(tv_arima,xreg=c(tv))
-plot(ts_var)
-lines(tv_arima_fcast$fitted,col="red")
-
-
-##Attempting to build the arim simple enough for excel
-#this only works for (1,1,1) models
- ar1=coef(tv_arima)[grep("ar1",names(coef(tv_arima)))]; if (is.na(ar1)) ar1=0
- ma1=coef(tv_arima)[grep("ma1",names(coef(tv_arima)))]; if (is.na(ma1)) ma1=0
- tv_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))]
- e_0=sqrt(tv_arima$sigma2)
-
- e_terms=length(grep("ma1",names(coef(tv_arima))))
- man_pred=rep(NA,length(ts_var))
- man_pred[1:(e_terms+1)]=fitted(tv_arima)[1:(e_terms+1)]
-for (i in (e_terms+2):length(ts_var)){
-  
-  e_1=ts_var[i-1]-man_pred[i-1]; if (is.na(e_1)) e_1=0
-  ma_part=ma1*e_1
-  
-  ar_part=ts_var[i-1]+ar1*ts_var[i-1]-ar1*ts_var[i-2]
-  exo_part=tv_coef*(tv[i]-tv[i-1]-ar1*tv[i-1]+ar1*tv[i-2])
-  
-  man_pred[i]=ma_part+ar_part+exo_part
-}
-
- # man_pred[1:20]
- # fitted(tv_arima)[1:20]
-lim_max=max(max(man_pred,na.rm=TRUE),max(fitted(tv_arima),na.rm=TRUE))
-lim_min=min(min(man_pred,na.rm=TRUE),min(fitted(tv_arima),na.rm=TRUE))
-qplot(man_pred,fitted(tv_arima),xlim=c(lim_min,lim_max),ylim=c(lim_min,lim_max))
-summary(lm(man_pred~as.vector(fitted(tv_arima))))
-#holy shit it worked
-
-
-
 
 
 #Building coefficient and R2 table
