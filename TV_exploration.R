@@ -38,7 +38,7 @@ sub_study$direct.all=NULL
 
 #Correlations
 
-vars<-c("organic","organic.home","direct.all","direct.home","paid.brand.sessions")
+vars<-c("organic.net.home","organic.home","direct.net.home","direct.home","paid.brand.sessions")
 
 ccf.df=data.frame(Correlation=NULL,Lag=NULL,Source=NULL)
 for (var in vars) {
@@ -62,7 +62,6 @@ CCF_plot<-ggplot(ccf.df,aes(x=Lag,y=Correlation,color=Source))+ theme_bw()+
                       breaks=vars,
                       labels=vars)
 CCF_plot
-row.names(ccf.df)=NULL
 ccf.df[which(ccf.df$Lag==0),c(1,3)]
 
 # ggplotly(CCF_plot)
@@ -70,11 +69,11 @@ ccf.df[which(ccf.df$Lag==0),c(1,3)]
 
 ## Organic Channel
 
-study_var=sub_study$organic
+study_var=sub_study$organic.net.home
 na_inds=which(is.na(study_var))
 tv=sub_study$tv.spend[-na_inds]
 study_var=na.omit(study_var)
-title_paste="Organic"
+title_paste="Organic Net of Home"
 
 
 ###2nd order polynomial fit
@@ -140,9 +139,9 @@ plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
 
 #Not allowing for seasonal component until we have two years of data
 tv_arima=auto.arima(ts_var,xreg=c(tv),max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE)
-# summary(tv_arima)
-# tv_arima_fcast=forecast(tv_arima,xreg=c(tv),h=0)
-# plot(tv_arima_fcast)
+ summary(tv_arima)
+ tv_arima_fcast=forecast(tv_arima,xreg=c(tv))
+ plot(tv_arima_fcast)
 
 ##Attempting to build the arim simple enough for excel
 

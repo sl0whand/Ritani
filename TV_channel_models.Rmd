@@ -64,7 +64,7 @@ title_paste="Organic Net Home"
 ###2nd order polynomial fit
 ```{r echo=FALSE, message=FALSE}
 #frequency shoud be 52 (weeks per year), but we don't have two full periods
-ts_var=ts(study_var, frequency = 13)
+ts_var=ts(study_var, frequency = 52)
 
 poly_fit=lm(study_var~tv+I(tv^2))
 tmp_df=data.frame(round(coef(poly_fit),3))
@@ -119,8 +119,8 @@ qplot(sub_study$date[-na_inds],stepwise_model$residuals)+theme_bw()+
 ###ARIMAX model with TV spend
 ```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
 
-stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
-plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
+# stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
+# plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
 ```
 
 
@@ -133,7 +133,7 @@ plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
 #Not allowing for seasonal component until we have two years of data
 tv_arima=auto.arima(ts_var,xreg=c(tv),max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE)
 
-# summary(tv_arima)
+summary(tv_arima)
 # tv_arima_fcast=forecast(tv_arima,xreg=c(tv),h=0)
 # plot(tv_arima_fcast)
 
@@ -173,7 +173,7 @@ title_paste="Organic Home"
 ###2nd order polynomial fit
 ```{r echo=FALSE, message=FALSE}
 #frequency shoud be 52 (weeks per year), but we don't have two full periods
-ts_var=ts(study_var, frequency = 13)
+ts_var=ts(study_var, frequency = 52)
 
 poly_fit=lm(study_var~tv+I(tv^2))
 tmp_df=data.frame(round(coef(poly_fit),3))
@@ -228,8 +228,8 @@ qplot(sub_study$date[-na_inds],stepwise_model$residuals)+theme_bw()+
 ###ARIMAX model with TV spend
 ```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
 
-stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
-plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
+# stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
+# plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
 ```
 
 
@@ -241,7 +241,7 @@ plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
 
 #Not allowing for seasonal component until we have two years of data
 tv_arima=auto.arima(ts_var,xreg=c(tv),max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE)
-# summary(tv_arima)
+summary(tv_arima)
 # tv_arima_fcast=forecast(tv_arima,xreg=c(tv),1)
 # plot(tv_arima_fcast)
 
@@ -282,7 +282,7 @@ title_paste="Direct Net Home"
 ###2nd order polynomial fit
 ```{r echo=FALSE, message=FALSE}
 #frequency shoud be 52 (weeks per year), but we don't have two full periods
-ts_var=ts(study_var, frequency = 13)
+ts_var=ts(study_var, frequency = 52)
 
 poly_fit=lm(study_var~tv+I(tv^2))
 tmp_df=data.frame(round(coef(poly_fit),3))
@@ -337,8 +337,8 @@ qplot(sub_study$date[-na_inds],stepwise_model$residuals)+theme_bw()+
 ###ARIMAX model with TV spend
 ```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
 
-stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
-plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
+# stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
+# plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
 ```
 
 
@@ -350,7 +350,7 @@ plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
 
 #Not allowing for seasonal component until we have two years of data
 tv_arima=auto.arima(ts_var,xreg=c(tv),max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE)
-# summary(tv_arima)
+summary(tv_arima)
 # tv_arima_fcast=forecast(tv_arima,xreg=c(tv),h=0)
 # plot(tv_arima_fcast)
 
@@ -390,7 +390,7 @@ title_paste="Direct Home"
 ###2nd order polynomial fit
 ```{r echo=FALSE, message=FALSE}
 #frequency shoud be 52 (weeks per year), but we don't have two full periods
-ts_var=ts(study_var, frequency = 13)
+ts_var=ts(study_var, frequency = 52)
 
 poly_fit=lm(study_var~tv+I(tv^2))
 tmp_df=data.frame(round(coef(poly_fit),3))
@@ -445,8 +445,8 @@ qplot(sub_study$date[-na_inds],stepwise_model$residuals)+theme_bw()+
 ###ARIMAX model with TV spend
 ```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
 
-stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
-plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
+# stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
+# plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
 ```
 
 
@@ -458,7 +458,7 @@ plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
 
 #Not allowing for seasonal component until we have two years of data
 tv_arima=auto.arima(ts_var,xreg=c(tv),max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE)
-# summary(tv_arima)
+summary(tv_arima)
 # tv_arima_fcast=forecast(tv_arima,xreg=c(tv),h=0)
 # plot(tv_arima_fcast)
 
@@ -499,7 +499,7 @@ title_paste="Paid Brand"
 ###2nd order polynomial fit
 ```{r echo=FALSE, message=FALSE}
 #frequency shoud be 52 (weeks per year), but we don't have two full periods
-ts_var=ts(study_var, frequency = 13)
+ts_var=ts(study_var, frequency = 52)
 
 poly_fit=lm(study_var~tv+I(tv^2))
 tmp_df=data.frame(round(coef(poly_fit),3))
@@ -554,8 +554,8 @@ qplot(sub_study$date[-na_inds],stepwise_model$residuals)+theme_bw()+
 ###ARIMAX model with TV spend
 ```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
 
-stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
-plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
+# stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
+# plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
 ```
 
 
@@ -567,7 +567,7 @@ plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
 
 #Not allowing for seasonal component until we have two years of data
 tv_arima=auto.arima(ts_var,xreg=c(tv),max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE)
-# summary(tv_arima)
+summary(tv_arima)
 # tv_arima_fcast=forecast(tv_arima,xreg=c(tv),h=0)
 # plot(tv_arima_fcast)
 

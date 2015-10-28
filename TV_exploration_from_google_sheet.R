@@ -48,27 +48,27 @@ channel_sessions_long=rbind(channel_sessions_long,
                               mutate(channel="tv.spend"))
 
 
-channel_sessions_long$year=strftime(channel_sessions_long$date,format="%y") 
-channel_sessions_long$week=strftime(channel_sessions_long$date,format="%W") 
-channel_sessions_long$date=as.Date(strptime(paste(channel_sessions_long$year,
-                                                  (as.numeric(channel_sessions_long$week)*7),
-                                                  sep=" "),format="%Y %j") +years(2000))
+# channel_sessions_long$year=strftime(channel_sessions_long$date,format="%y") 
+# channel_sessions_long$week=strftime(channel_sessions_long$date,format="%W") 
+# channel_sessions_long$date=as.Date(strptime(paste(channel_sessions_long$year,
+                                                  # (as.numeric(channel_sessions_long$week)*7),
+                                                  # sep=" "),format="%Y %j") +years(2000))
 
 
 
-channel_sessions_long=channel_sessions_long %>% group_by(channel,year,week) %>% 
-  summarise(sessions=sum(sessions),date=first(date))
+# channel_sessions_long=channel_sessions_long %>% group_by(channel,year,week) %>% 
+  # summarise(sessions=sum(sessions),date=first(date))
 #swapping in monday
-for (i in which(is.na(channel_sessions_long$date))) {
-  channel_sessions_long$date[i]=channel_sessions_long$date[i+1]-weeks(1)
-}
-channel_sessions_long=channel_sessions_long %>% group_by(channel,year,week) %>% 
-  summarise(sessions=sum(sessions),date=first(date))
+# for (i in which(is.na(channel_sessions_long$date))) {
+  # channel_sessions_long$date[i]=channel_sessions_long$date[i+1]-weeks(1)
+# }
+# channel_sessions_long=channel_sessions_long %>% group_by(channel,year,week) %>% 
+  # summarise(sessions=sum(sessions),date=first(date))
 
 
-rm_vars=c("year","week")
-rm_cols=which(names(channel_sessions_long) %in% rm_vars)
-channel_sessions_long=channel_sessions_long[,-rm_cols]
+# rm_vars=c("year","week")
+# rm_cols=which(names(channel_sessions_long) %in% rm_vars)
+# channel_sessions_long=channel_sessions_long[,-rm_cols]
 
 #plot everything
 ggplot(channel_sessions_long) + theme_bw() +
@@ -91,16 +91,17 @@ tv=channel_sessions_long$tv.spend[-na_inds]
 study_var=na.omit(study_var)
 
 title_paste=names(channel_sessions_long)[grep(vars[i],names(channel_sessions_long))]
-plot(study_var,tv)
-cor(study_var,tv)
+plot(tv,study_var)
+cor(tv,study_var)
+ccf(tv,study_var)
 
 ###2nd order polynomial fit
 
 #frequency shoud be 52 (weeks per year), but we don't have two full periods
-ts_var=ts(study_var, frequency = 52)
-t=try(stl_obj=stl(ts_var, s.window="periodic",robust=TRUE))
+ts_var=ts(study_var, frequency = 365)
+stl_obj=try(stl(ts_var, s.window="periodic",robust=TRUE))
 if (class(t)=="try-error") {
-  ts_var=ts(study_var, frequency = 26)
+  ts_var=ts(study_var, frequency = 183)
   stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
 }
 plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
@@ -160,41 +161,45 @@ qplot(channel_sessions_long$date[-na_inds],stepwise_model$residuals)+theme_bw()+
 
 
 #Not allowing for seasonal component until we have two years of data
-tv_arima=auto.arima(ts_var,xreg=c(tv),max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE)
+tv_arima=auto.arima(ts_var,xreg=c(tv),allowdrift=FALSE)
 summary(tv_arima)
 tv_arima_fcast=forecast(tv_arima,xreg=c(tv))
-plot(tv_arima_fcast)
+plot(ts_var)
+lines(tv_arima_fcast$fitted,col="red")
+
 
 ##Attempting to build the arim simple enough for excel
 
-# ar1=coef(tv_arima)[grep("ar1",names(coef(tv_arima)))]
-# ma1=coef(tv_arima)[grep("ma1",names(coef(tv_arima)))]
-tv_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))]
-# ste=sqrt(tv_arima$sigma2)
-# 
-# man_diff=rep(NA,length(ts_var))
-# ts_var_d1=c(NA,diff(ts_var,1))
-# for (i in 3:length(ts_var)){
-#   #exogeneous part
-#   # tv_part=tv_coef*(tv[i]-(1+ar1)*tv[i-1]+ar1*tv[i-2])
-#   tv_part=tv_coef*ts_var_d1[i]
-#   
-#   #Auto-regressive part
-#   # ar_part=(1+ar1)*ts_var_d1[i-1]-ar1*ts_var_d1[i-2]
-#   ar_part=ar1*ts_var_d1[i-1]
-#   
-#   #Moving averagive part
-#   et1=ts_var_d1[i-1]-man_pred[i-1];  if (is.na(et1)) et1=0
-#   ma_part=ma1*et1
-#   
-#   man_pred[i]=tv_part+ar_part+ma_part+ste
-# }
-# 
-# 
-#   
-# man_pred[1:20]
-# diff(ts_var_d1)[1:20]
-# diff(fitted(tv_arima))[1:20]
+ ar1=coef(tv_arima)[grep("ar1",names(coef(tv_arima)))]
+ ma1=coef(tv_arima)[grep("ma1",names(coef(tv_arima)))]
+ tv_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))]
+ e_0=sqrt(tv_arima$sigma2)
+
+ man_pred=rep(NA,length(ts_var))
+
+for (i in 3:length(ts_var)){
+  #getting variable values for model
+  e_1=ts_var[i-1]-man_pred[i-1]; if (is.na(e_1)) e_1=0
+  
+  
+  ar_part=ts_var[i-1]+ar1*ts_var[i-1]-ar1*ts_var[i-2]
+  ma_part=ma1*e_1
+  exo_part=tv_coef*(tv[i]-tv[i-1]-ar1*tv[i-1]+ar1*tv[i-2])
+  
+  man_pred[i]=ar_part+ma_part+exo_part
+}
+ man_pred=man_pred
+
+ 
+
+lim_max=max(max(man_pred,na.rm=TRUE),max(fitted(tv_arima),na.rm=TRUE))
+lim_min=min(min(man_pred,na.rm=TRUE),min(fitted(tv_arima),na.rm=TRUE))
+qplot(man_pred,fitted(tv_arima),asp=1,xlim=c(lim_min,lim_max),ylim=c(lim_min,lim_max))
+lm(man_pred~as.vector(fitted(tv_arima)))
+#holy shit it worked
+
+
+
 
 
 #Building coefficient and R2 table
