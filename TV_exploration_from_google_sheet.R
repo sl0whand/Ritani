@@ -8,6 +8,8 @@ library(forecast)
 library(stats)
 library(pander)
 library(TTR)
+library(googlesheets)
+
 
 #pulling TV spend data
 tv_data=tbl_df(read.xlsx("tvanalysis.xlsx",sheet=2,rows=c(1:95),cols=c(1,4:20)))
@@ -28,7 +30,10 @@ sub_study$direct.all=sub_study$direct.all-sub_study$direct.home
 
 
 ##pulling older daily session data
-channel_sessions_long=tbl_df(read.xlsx("channeldata_with_home.xlsx",sheet=1))
+a=gs_title("channeldata with home")
+channel_sessions_long=a %>% gs_read(ws = "gadata")
+
+# channel_sessions_long=tbl_df(read.xlsx("channeldata_with_home.xlsx",sheet=1))
 channel_sessions_long=channel_sessions_long %>% rename(channel=channelGrouping)
 #converting date
 channel_sessions_long$date=as.Date(paste(substr(as.character(channel_sessions_long$date),5,6),
@@ -37,7 +42,7 @@ channel_sessions_long$date=as.Date(paste(substr(as.character(channel_sessions_lo
                                          sep="-"), "%m-%d-%Y")
 
 #removing garbage vars
-rm_vars=c("pageviews","X5")
+rm_vars=c("pageviews","X")
 rm_cols=which(names(channel_sessions_long) %in% rm_vars)
 channel_sessions_long=channel_sessions_long[,-rm_cols]
 
@@ -48,27 +53,27 @@ channel_sessions_long=rbind(channel_sessions_long,
                               mutate(channel="tv.spend"))
 
 
-# channel_sessions_long$year=strftime(channel_sessions_long$date,format="%y") 
-# channel_sessions_long$week=strftime(channel_sessions_long$date,format="%W") 
-# channel_sessions_long$date=as.Date(strptime(paste(channel_sessions_long$year,
-                                                  # (as.numeric(channel_sessions_long$week)*7),
-                                                  # sep=" "),format="%Y %j") +years(2000))
+channel_sessions_long$year=strftime(channel_sessions_long$date,format="%y") 
+channel_sessions_long$week=strftime(channel_sessions_long$date,format="%W") 
+channel_sessions_long$date=as.Date(strptime(paste(channel_sessions_long$year,
+                                                  (as.numeric(channel_sessions_long$week)*7),
+                                                  sep=" "),format="%Y %j") +years(2000))
 
 
 
-# channel_sessions_long=channel_sessions_long %>% group_by(channel,year,week) %>% 
-  # summarise(sessions=sum(sessions),date=first(date))
-#swapping in monday
-# for (i in which(is.na(channel_sessions_long$date))) {
-  # channel_sessions_long$date[i]=channel_sessions_long$date[i+1]-weeks(1)
-# }
-# channel_sessions_long=channel_sessions_long %>% group_by(channel,year,week) %>% 
-  # summarise(sessions=sum(sessions),date=first(date))
+channel_sessions_long=channel_sessions_long %>% group_by(channel,year,week) %>% 
+  summarise(sessions=sum(sessions),date=first(date))
+# swapping in mondays
+for (i in which(is.na(channel_sessions_long$date))) {
+  channel_sessions_long$date[i]=channel_sessions_long$date[i+1]-weeks(1)
+}
+channel_sessions_long=channel_sessions_long %>% group_by(channel,year,week) %>% 
+  summarise(sessions=sum(sessions),date=first(date))
 
 
-# rm_vars=c("year","week")
-# rm_cols=which(names(channel_sessions_long) %in% rm_vars)
-# channel_sessions_long=channel_sessions_long[,-rm_cols]
+rm_vars=c("year","week")
+rm_cols=which(names(channel_sessions_long) %in% rm_vars)
+channel_sessions_long=channel_sessions_long[,-rm_cols]
 
 #plot everything
 ggplot(channel_sessions_long) + theme_bw() +
@@ -83,12 +88,12 @@ channel_sessions_long$tv.spend[which(is.na(channel_sessions_long$tv.spend))]=0
 
 
 ## Organic Channel
-i=2
+i=3
 vars=c("Branded Paid Search", "Direct", "Organic Search")
 study_var=channel_sessions_long[,grep(vars[i],names(channel_sessions_long))][[1]]
 na_inds=which(is.na(study_var))
 tv=channel_sessions_long$tv.spend[-na_inds]
-study_var=na.omit(study_var)
+study_var=study_var[-na_inds]
 
 title_paste=names(channel_sessions_long)[grep(vars[i],names(channel_sessions_long))]
 plot(tv,study_var)
@@ -98,10 +103,10 @@ ccf(tv,study_var)
 ###2nd order polynomial fit
 
 #frequency shoud be 52 (weeks per year), but we don't have two full periods
-ts_var=ts(study_var, frequency = 365)
+ts_var=ts(study_var, frequency = 52)
 stl_obj=try(stl(ts_var, s.window="periodic",robust=TRUE))
-if (class(t)=="try-error") {
-  ts_var=ts(study_var, frequency = 183)
+if (class(stl_obj)=="try-error") {
+  ts_var=ts(study_var, frequency = 26)
   stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
 }
 plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
@@ -154,7 +159,6 @@ qplot(channel_sessions_long$date[-na_inds],stepwise_model$residuals)+theme_bw()+
 
 ###Arima model with TV spend
 
-
 #Building exogeneous variables
 # xreg_matrix<-model.matrix(formula(stepwise_model),data=sub_study)
 # xreg_matrix=xreg_matrix[,-1]
@@ -169,33 +173,32 @@ lines(tv_arima_fcast$fitted,col="red")
 
 
 ##Attempting to build the arim simple enough for excel
-
- ar1=coef(tv_arima)[grep("ar1",names(coef(tv_arima)))]
- ma1=coef(tv_arima)[grep("ma1",names(coef(tv_arima)))]
+#this only works for (1,1,1) models
+ ar1=coef(tv_arima)[grep("ar1",names(coef(tv_arima)))]; if (is.na(ar1)) ar1=0
+ ma1=coef(tv_arima)[grep("ma1",names(coef(tv_arima)))]; if (is.na(ma1)) ma1=0
  tv_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))]
  e_0=sqrt(tv_arima$sigma2)
 
+ e_terms=length(grep("ma1",names(coef(tv_arima))))
  man_pred=rep(NA,length(ts_var))
-
-for (i in 3:length(ts_var)){
-  #getting variable values for model
-  e_1=ts_var[i-1]-man_pred[i-1]; if (is.na(e_1)) e_1=0
+ man_pred[1:(e_terms+1)]=fitted(tv_arima)[1:(e_terms+1)]
+for (i in (e_terms+2):length(ts_var)){
   
+  e_1=ts_var[i-1]-man_pred[i-1]; if (is.na(e_1)) e_1=0
+  ma_part=ma1*e_1
   
   ar_part=ts_var[i-1]+ar1*ts_var[i-1]-ar1*ts_var[i-2]
-  ma_part=ma1*e_1
   exo_part=tv_coef*(tv[i]-tv[i-1]-ar1*tv[i-1]+ar1*tv[i-2])
   
-  man_pred[i]=ar_part+ma_part+exo_part
+  man_pred[i]=ma_part+ar_part+exo_part
 }
- man_pred=man_pred
 
- 
-
+ # man_pred[1:20]
+ # fitted(tv_arima)[1:20]
 lim_max=max(max(man_pred,na.rm=TRUE),max(fitted(tv_arima),na.rm=TRUE))
 lim_min=min(min(man_pred,na.rm=TRUE),min(fitted(tv_arima),na.rm=TRUE))
-qplot(man_pred,fitted(tv_arima),asp=1,xlim=c(lim_min,lim_max),ylim=c(lim_min,lim_max))
-lm(man_pred~as.vector(fitted(tv_arima)))
+qplot(man_pred,fitted(tv_arima),xlim=c(lim_min,lim_max),ylim=c(lim_min,lim_max))
+summary(lm(man_pred~as.vector(fitted(tv_arima))))
 #holy shit it worked
 
 
@@ -215,7 +218,7 @@ qplot(study_var,fitted(poly_fit))+theme_bw()+ggtitle("2nd order Polynomial Fit")
   xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
 qplot(study_var,fitted(stepwise_model))+theme_bw()+ggtitle("Stepwise Polynomial Fit")+
   xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
-qplot(study_var,as.vector(fitted(tv_arima)))+theme_bw()+ggtitle("ARIMAS Fit")+
+qplot(study_var,as.vector(fitted(tv_arima)))+theme_bw()+ggtitle("ARIMAX Fit")+
   xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
 
 
