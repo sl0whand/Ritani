@@ -103,6 +103,9 @@ study_cols=which(names(channel_sessions_long) %in% study_vars)
 channel_sessions_long=channel_sessions_long[,study_cols]  %>% arrange(desc(date))
 
 write.xlsx(channel_sessions_long, "tv_channel_analysis.xlsx")
+ gs_upload("tv_channel_analysis.xlsx",sheet_title="upload_dont_edit")
+
+
 ## Organic Channel
 i=5
 study_var=channel_sessions_long[,grep(study_vars[i],names(channel_sessions_long))][[1]]

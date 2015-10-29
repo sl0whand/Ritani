@@ -15,6 +15,7 @@ library(stats)
 library(pander)
 library(TTR)
 library(googlesheets)
+
 ```
 
 
@@ -108,7 +109,7 @@ study_vars=c("date","tv.spend","direct.net.home","direct.home",
              "organic.net.home","organic.home",
              "paid.brand.sessions")
 study_cols=which(names(channel_sessions_long) %in% study_vars)
-channel_sessions_long=channel_sessions_long[,study_cols]  %>% arrange(desc(date))
+channel_sessions_long=channel_sessions_long[,study_cols]  %>% arrange(date)
 
 ```
 
@@ -169,19 +170,20 @@ qplot(channel_sessions_long$date[-na_inds],stepwise_model$residuals)+theme_bw()+
 
 ```
 
-###ARIMAX model with TV spend
+
 ```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
 
 stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
 plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
+
 ```
 
 
+###ARIMAX model with TV spend
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
 #Not allowing for seasonal component until we have two years of data
-tv_arima=auto.arima(ts_var,xreg=c(tv),max.q=0,max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE)
-
+tv_arima=auto.arima(study_var,xreg=c(tv),max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE,allowmean = FALSE)
 
 summary(tv_arima)
 # tv_arima_fcast=forecast(tv_arima,xreg=c(tv),h=0)
@@ -197,6 +199,48 @@ rownames(tmp_df)[length(rownames(tmp_df))]="R2"
 pander(tmp_df)
 
 ```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, eval=FALSE}
+#Secret manual modeling
+##Attempting to build the arim simple enough for excel
+#for (1,1,2) model
+ma1=coef(tv_arima)[grep("ma1",names(coef(tv_arima)))]
+ma2=coef(tv_arima)[grep("ma2",names(coef(tv_arima)))]
+ar1=coef(tv_arima)[grep("ar1",names(coef(tv_arima)))]
+tv_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))]
+ 
+
+e_terms=2
+ man_pred=rep(NA,length(study_var))
+ man_pred[1:e_terms]=study_var[1:e_terms]
+for (i in (e_terms+1):length(study_var)){
+  e_1=study_var[i-1]-man_pred[i-1]; if (sum(e_1)==0) e_1=0 else if (is.na(e_1)) e_1=0
+  e_2=study_var[i-2]-man_pred[i-2]; if (sum(e_2)==0) e_2=0 else if (is.na(e_2)) e_2=0
+  ma_part=ma1*e_1+ma2*e_2
+  
+  exo_part=tv_coef*(tv[i]-tv[i-1]-ar1*(tv[i-1]-tv[i-2]))
+  
+  ar_part=study_var[i-1]+ar1*(study_var[i-1]-study_var[i-2])
+  
+  man_pred[i]=ar_part+ma_part+exo_part
+}
+
+  man_pred[1:20]
+  fitted(tv_arima)[1:20]
+lim_max=max(max(man_pred,na.rm=TRUE),max(fitted(tv_arima),na.rm=TRUE))
+lim_min=min(min(man_pred,na.rm=TRUE),min(fitted(tv_arima),na.rm=TRUE))
+qplot(man_pred,fitted(tv_arima),xlim=c(lim_min,lim_max),ylim=c(lim_min,lim_max))
+man_fit=lm(man_pred~fitted(tv_arima))
+summary(man_fit)
+coef(man_fit)
+
+
+```
+
+
+
+
 
 ```{r echo=FALSE, message=FALSE}
 
@@ -265,17 +309,20 @@ qplot(channel_sessions_long$date[-na_inds],stepwise_model$residuals)+theme_bw()+
 
 ```
 
+
 ###ARIMAX model with TV spend
 ```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
 
 stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
 plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
+
 ```
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
 #Not allowing for seasonal component until we have two years of data
-tv_arima=auto.arima(ts_var,xreg=c(tv),max.q=0,max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE)
+tv_arima=auto.arima(ts_var,xreg=c(tv),max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE,allowmean=FALSE)
+
 summary(tv_arima)
 # tv_arima_fcast=forecast(tv_arima,xreg=c(tv),1)
 # plot(tv_arima_fcast)
@@ -289,6 +336,43 @@ rownames(tmp_df)[length(rownames(tmp_df))]="R2"
 pander(tmp_df)
 
 ```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, eval=FALSE}
+#Secret manual modeling
+##Attempting to build the arim simple enough for excel
+#for (3,0,0) model
+ar1=coef(tv_arima)[grep("ar1",names(coef(tv_arima)))]
+ar2=coef(tv_arima)[grep("ar2",names(coef(tv_arima)))]
+ar3=coef(tv_arima)[grep("ar3",names(coef(tv_arima)))]
+
+tv_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))]
+ 
+
+e_terms=3
+ man_pred=rep(NA,length(study_var))
+ man_pred[1:e_terms]=study_var[1:e_terms]
+for (i in (e_terms+1):length(ts_var)){
+  
+  exo_part=tv_coef*(tv[i]-ar1*tv[i-1]-ar2*tv[i-2]-ar3*tv[i-3])
+  
+  ar_part=ar1*ts_var[i-1]+ar2*ts_var[i-2]+ar3*ts_var[i-3]
+  
+  man_pred[i]=ar_part+exo_part
+}
+
+  man_pred[1:20]
+  fitted(tv_arima)[1:20]
+lim_max=max(max(man_pred,na.rm=TRUE),max(fitted(tv_arima),na.rm=TRUE))
+lim_min=min(min(man_pred,na.rm=TRUE),min(fitted(tv_arima),na.rm=TRUE))
+qplot(man_pred,fitted(tv_arima),xlim=c(lim_min,lim_max),ylim=c(lim_min,lim_max))
+man_fit=lm(man_pred~fitted(tv_arima))
+summary(man_fit)
+coef(man_fit)
+
+
+```
+
 
 ```{r echo=FALSE, message=FALSE}
 
@@ -369,7 +453,7 @@ plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
 #Not allowing for seasonal component until we have two years of data
-tv_arima=auto.arima(ts_var,xreg=c(tv),max.q=0,max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE)
+tv_arima=auto.arima(ts_var,xreg=c(tv),max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE,allowmean=FALSE)
 summary(tv_arima)
 # tv_arima_fcast=forecast(tv_arima,xreg=c(tv),h=0)
 # plot(tv_arima_fcast)
@@ -384,6 +468,44 @@ rownames(tmp_df)[length(rownames(tmp_df))]="R2"
 pander(tmp_df)
 
 ```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, eval=FALSE}
+#Secret manual modeling
+##Attempting to build the arim simple enough for excel
+#for (3,0,0) model
+ar1=coef(tv_arima)[grep("ar1",names(coef(tv_arima)))]
+ar2=coef(tv_arima)[grep("ar2",names(coef(tv_arima)))]
+ar3=coef(tv_arima)[grep("ar3",names(coef(tv_arima)))]
+
+tv_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))]
+ 
+
+e_terms=3
+ man_pred=rep(NA,length(study_var))
+ man_pred[1:e_terms]=study_var[1:e_terms]
+for (i in (e_terms+1):length(study_var)){
+  
+  exo_part=tv_coef*(tv[i]-ar1*tv[i-1]-ar2*tv[i-2]-ar3*tv[i-3])
+  
+  ar_part=ar1*study_var[i-1]+ar2*study_var[i-2]+ar3*study_var[i-3]
+  
+  man_pred[i]=ar_part+exo_part
+}
+
+  man_pred[1:20]
+  fitted(tv_arima)[1:20]
+lim_max=max(max(man_pred,na.rm=TRUE),max(fitted(tv_arima),na.rm=TRUE))
+lim_min=min(min(man_pred,na.rm=TRUE),min(fitted(tv_arima),na.rm=TRUE))
+qplot(man_pred,fitted(tv_arima),xlim=c(lim_min,lim_max),ylim=c(lim_min,lim_max))
+man_fit=lm(man_pred~fitted(tv_arima))
+summary(man_fit)
+coef(man_fit)
+
+
+```
+
+
 
 ```{r echo=FALSE, message=FALSE}
 
@@ -463,7 +585,7 @@ plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
 
 
 #Not allowing for seasonal component until we have two years of data
-tv_arima=auto.arima(ts_var,xreg=c(tv),max.q=0,max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE)
+tv_arima=auto.arima(ts_var,xreg=c(tv),max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE,allowmean=FALSE)
 summary(tv_arima)
 # tv_arima_fcast=forecast(tv_arima,xreg=c(tv),h=0)
 # plot(tv_arima_fcast)
@@ -478,6 +600,41 @@ rownames(tmp_df)[length(rownames(tmp_df))]="R2"
 pander(tmp_df)
 
 ```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, eval=FALSE}
+#Secret manual modeling
+##Attempting to build the arim simple enough for excel
+#for (1,0,0) model
+
+ar1=coef(tv_arima)[grep("ar1",names(coef(tv_arima)))]
+tv_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))]
+ 
+
+e_terms=1
+ man_pred=rep(NA,length(study_var))
+ man_pred[1:e_terms]=study_var[1:e_terms]
+for (i in (e_terms+1):length(study_var)){
+  
+  exo_part=tv_coef*(tv[i]-ar1*tv[i-1])
+  
+  ar_part=ar1*ts_var[i-1]
+  
+  man_pred[i]=ar_part+exo_part
+}
+
+  man_pred[1:20]
+  fitted(tv_arima)[1:20]
+lim_max=max(max(man_pred,na.rm=TRUE),max(fitted(tv_arima),na.rm=TRUE))
+lim_min=min(min(man_pred,na.rm=TRUE),min(fitted(tv_arima),na.rm=TRUE))
+qplot(man_pred,fitted(tv_arima),xlim=c(lim_min,lim_max),ylim=c(lim_min,lim_max))
+man_fit=lm(man_pred~fitted(tv_arima))
+summary(man_fit)
+coef(man_fit)
+
+
+```
+
 
 ```{r echo=FALSE, message=FALSE}
 
@@ -558,7 +715,8 @@ if (class(stl_obj)!="try-error") plot(stl_obj)+title(paste(title_paste,"Seasonal
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
 #Not allowing for seasonal component until we have two years of data
-tv_arima=auto.arima(ts_var,xreg=c(tv),max.q=0,max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE)
+tv_arima=auto.arima(ts_var,xreg=c(tv),max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE,allowmean=FALSE)
+
 summary(tv_arima)
 # tv_arima_fcast=forecast(tv_arima,xreg=c(tv),h=0)
 # plot(tv_arima_fcast)
@@ -573,6 +731,43 @@ rownames(tmp_df)[length(rownames(tmp_df))]="R2"
 pander(tmp_df)
 
 ```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, eval=FALSE}
+#Secret manual modeling
+##Attempting to build the arim simple enough for excel
+#for (1,1,1) model
+ma1=coef(tv_arima)[grep("ma1",names(coef(tv_arima)))]
+ar1=coef(tv_arima)[grep("ar1",names(coef(tv_arima)))]
+tv_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))]
+ 
+
+e_terms=2
+ man_pred=rep(NA,length(study_var))
+ man_pred[1:e_terms]=study_var[1:e_terms]
+for (i in (e_terms+1):length(study_var)){
+  e_1=study_var[i-1]-man_pred[i-1]; if (sum(e_1)==0) e_1=0 else if (is.na(e_1)) e_1=0
+  ma_part=ma1*e_1
+  
+  exo_part=tv_coef*(tv[i]-tv[i-1]-ar1*(tv[i-1]-tv[i-2]))
+  
+  ar_part=study_var[i-1]+ar1*(study_var[i-1]-study_var[i-2])
+  
+  man_pred[i]=ar_part+ma_part+exo_part
+}
+
+  man_pred[1:20]
+  fitted(tv_arima)[1:20]
+lim_max=max(max(man_pred,na.rm=TRUE),max(fitted(tv_arima),na.rm=TRUE))
+lim_min=min(min(man_pred,na.rm=TRUE),min(fitted(tv_arima),na.rm=TRUE))
+qplot(man_pred,fitted(tv_arima),xlim=c(lim_min,lim_max),ylim=c(lim_min,lim_max))
+man_fit=lm(man_pred~fitted(tv_arima))
+summary(man_fit)
+coef(man_fit)
+
+
+```
+
 
 ```{r echo=FALSE, message=FALSE}
 
