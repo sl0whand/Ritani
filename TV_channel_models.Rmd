@@ -16,7 +16,7 @@ library(pander)
 library(TTR)
 library(googlesheets)
 
-source("arima_formula.R")
+source("report_functions.R")
 
 ```
 
@@ -24,6 +24,7 @@ source("arima_formula.R")
 
 ```{r echo=FALSE, message=FALSE}
 load(file="channel_sessions_long.rda")
+freq=52
 
 ```
 
@@ -81,151 +82,59 @@ title_paste="Organic Net Home"
 
 ###2nd order polynomial fit
 ```{r echo=FALSE, message=FALSE}
-#frequency shoud be 52 (weeks per year), but we don't have two full periods
-poly_fit=lm(study_var~tv+I(tv^2))
-tmp_df=data.frame(round(coef(poly_fit),3))
-tmp_df=rbind(tmp_df,cor(fitted(poly_fit),na.omit(study_var))^2)
-rownames(tmp_df)[length(rownames(tmp_df))]="R2"
-pander(tmp_df)
-
+#frequency shoud be freq (weeks per year), but we don't have two full periods
+poly_fit=report_poly_fit_2(study_var,tv)
+report_poly_fit_2_sub(poly_fit,study_var)
 ```
 
 
 ###Stepwise polynomial fit
 ```{r echo=FALSE, message=FALSE, results="hide"}
-big_poly_fit=lm(study_var~tv+I(tv^2)+I(tv^3)+I(tv^4))
-stepwise_model=step(big_poly_fit,k=log(nrow(channel_sessions_long)),scope = list(lower = ~tv))
+stepwise_model=step_model(study_var,tv)
 ```
 
 ```{r echo=FALSE, message=FALSE}
-tmp_df=data.frame(round(coef(stepwise_model),3))
-tmp_df=rbind(tmp_df,cor(fitted(stepwise_model),na.omit(study_var))^2)
-rownames(tmp_df)[length(rownames(tmp_df))]="R2"
-pander(tmp_df)
+step_pander(stepwise_model)
+
 ```
 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-tmp_df=data.frame(tv.spend=tv,channel=study_var,poly=fitted(poly_fit),
-                  step=fitted(stepwise_model))
-ggplot(tmp_df) + theme_bw()+
-  # geom_smooth(aes(x=tv.spend,y=channel),method="smooth")+
-  geom_point(aes(x=tv.spend,y=channel,color=title_paste))+ 
-  geom_line(aes(x=tv.spend,y=poly,color="2nd Order Plynomial Fit"))+ 
-  geom_line(aes(x=tv.spend,y=step,color="Stepwise Polynomial Fit"))+ 
-  ggtitle("Model Fits")+xlab("TV Speding (Dollars)")+ylab("Sessions")+
-  guides(color=guide_legend(title="Models"))
 
-#This plot shows a major time trend component- implying previous models were useless
-t=Box.test(stepwise_model$residuals)
-box_p=round(t$p.value,4)
-qplot(channel_sessions_long$date[-na_inds],stepwise_model$residuals)+theme_bw()+
-  ggtitle(paste("Polynomial Fit Residuals, Box Test p-value",box_p) )+xlab("Date")+ylab("Residuals")
-
-
+poly_plots(tv,study_var,poly_fit,stepwise_model)
 
 ```
 
 ###Trend Decomposition
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
-ts_var=ts(study_var, frequency = 52)
-stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
-plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
-
-
-qplot(date,tv)+theme_bw()+ggtitle("TV Spending")+xlab("Date")+ylab("Dollars")
-
-stl_residuals=stl_obj$time.series[,3]
-
-temp_df=data.frame(tv,stl_residuals)
-ggplot(temp_df,aes(x=tv,y=stl_residuals))+theme_bw()+
-  geom_smooth(method="lm")+geom_point()+ggtitle("TV Spending Against Smoothed Residuals")+xlab("Dollars")+ylab("Residuals")
-```
-
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
- new_r2=round(cor(tv,stl_residuals),2)
- old_r2=round(cor(tv,study_var),2)
- temp_df=data.frame(Message=c("Orignal Correlation:","Residuals Correlation:"),R2=c(old_r2,new_r2))
- pander(temp_df)
+stl_func(study_var,freq)
 
 ```
+
 
 
 ###ARIMAX model with TV spend
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-
-#Not allowing for seasonal component until we have two years of data
-tv_arima=auto.arima(study_var,xreg=c(tv),max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE,allowmean = FALSE)
-
- 
-
- arima_formula(tv_arima,tv)
-
-
-
-
-
-#Building coefficient and R2 table
-tv_arima_R2=round(cor(fitted(tv_arima),ts_var)^2,2)
-tmp_df=data.frame(coef(tv_arima))
-tmp_df=rbind(tmp_df,tv_arima_R2)
-rownames(tmp_df)[length(rownames(tmp_df))]="R2"
-pander(tmp_df)
+tv_arima=arima_func(stepwise_model,study_var,tv,freq)
+arima_func_sub(tv_arima,stepwise_model,study_var,tv,freq)
 
 ```
-
-
-```{r echo=FALSE, message=FALSE, warning=FALSE, eval=FALSE}
-#Secret manual modeling
-##Attempting to build the arim simple enough for excel
-#for (1,1,2) model
-ma1=coef(tv_arima)[grep("ma1",names(coef(tv_arima)))]
-ma2=coef(tv_arima)[grep("ma2",names(coef(tv_arima)))]
-ar1=coef(tv_arima)[grep("ar1",names(coef(tv_arima)))]
-tv_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))]
- 
-
-e_terms=2
- man_pred=rep(NA,length(study_var))
- man_pred[1:e_terms]=study_var[1:e_terms]
-for (i in (e_terms+1):length(study_var)){
-  e_1=study_var[i-1]-man_pred[i-1]; if (sum(e_1)==0) e_1=0 else if (is.na(e_1)) e_1=0
-  e_2=study_var[i-2]-man_pred[i-2]; if (sum(e_2)==0) e_2=0 else if (is.na(e_2)) e_2=0
-  ma_part=ma1*e_1+ma2*e_2
-  
-  exo_part=tv_coef*(tv[i]-tv[i-1]-ar1*(tv[i-1]-tv[i-2]))
-  
-  ar_part=study_var[i-1]+ar1*(study_var[i-1]-study_var[i-2])
-  
-  man_pred[i]=ar_part+ma_part+exo_part
-}
-
-  man_pred[1:20]
-  fitted(tv_arima)[1:20]
-lim_max=max(max(man_pred,na.rm=TRUE),max(fitted(tv_arima),na.rm=TRUE))
-lim_min=min(min(man_pred,na.rm=TRUE),min(fitted(tv_arima),na.rm=TRUE))
-qplot(man_pred,fitted(tv_arima),xlim=c(lim_min,lim_max),ylim=c(lim_min,lim_max))
-man_fit=lm(man_pred~fitted(tv_arima))
-summary(man_fit)
-coef(man_fit)
-
-
-```
-
-
-
 
 
 ```{r echo=FALSE, message=FALSE}
 
-qplot(study_var,fitted(stepwise_model))+theme_bw()+ggtitle("Stepwise Polynomial Fit")+
-  xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
-qplot(study_var,as.vector(fitted(tv_arima)))+theme_bw()+ggtitle("ARIMAX Fit")+
-  xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
+# model_comp_plots(stepwise_model,tv_arima)
+transformed_plot(tv_arima,tv)
 
 ```
+
+
+###Model Validation
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+model_validation(tv_arima,study_var,tv,freq)
+```
+
 
 ## Organic Home Channel
 
@@ -241,143 +150,60 @@ title_paste="Organic Home"
 
 ###2nd order polynomial fit
 ```{r echo=FALSE, message=FALSE}
-#frequency shoud be 52 (weeks per year), but we don't have two full periods
-
-poly_fit=lm(study_var~tv+I(tv^2))
-tmp_df=data.frame(round(coef(poly_fit),3))
-tmp_df=rbind(tmp_df,cor(fitted(poly_fit),na.omit(study_var))^2)
-rownames(tmp_df)[length(rownames(tmp_df))]="R2"
-pander(tmp_df)
-
+#frequency shoud be freq (weeks per year), but we don't have two full periods
+poly_fit=report_poly_fit_2(study_var,tv)
+report_poly_fit_2_sub(poly_fit,study_var)
 ```
 
 
 ###Stepwise polynomial fit
 ```{r echo=FALSE, message=FALSE, results="hide"}
-big_poly_fit=lm(study_var~tv+I(tv^2)+I(tv^3)+I(tv^4))
-stepwise_model=step(big_poly_fit,k=log(nrow(channel_sessions_long)),scope = list(lower = ~tv))
+stepwise_model=step_model(study_var,tv)
 ```
 
 ```{r echo=FALSE, message=FALSE}
-tmp_df=data.frame(round(coef(stepwise_model),3))
-tmp_df=rbind(tmp_df,cor(fitted(stepwise_model),na.omit(study_var))^2)
-rownames(tmp_df)[length(rownames(tmp_df))]="R2"
-pander(tmp_df)
+step_pander(stepwise_model)
+
 ```
 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-tmp_df=data.frame(tv.spend=tv,channel=study_var,poly=fitted(poly_fit),
-                  step=fitted(stepwise_model))
-ggplot(tmp_df) + theme_bw()+
-  geom_point(aes(x=tv.spend,y=channel,color=title_paste))+ 
-  geom_line(aes(x=tv.spend,y=poly,color="2nd Order Plynomial Fit"))+ 
-  geom_line(aes(x=tv.spend,y=step,color="Stepwise Polynomial Fit"))+ 
-  ggtitle("Model Fits")+xlab("TV Speding (Dollars)")+ylab("Sessions")+
-  guides(color=guide_legend(title="Models"))
 
-#This plot shows a major time trend component- implying previous models were useless
-t=Box.test(stepwise_model$residuals)
-box_p=round(t$p.value,4)
-qplot(channel_sessions_long$date[-na_inds],stepwise_model$residuals)+theme_bw()+
-  ggtitle(paste("Polynomial Fit Residuals, Box Test p-value",box_p) )+xlab("Date")+ylab("Residuals")
-
+poly_plots(tv,study_var,poly_fit,stepwise_model)
 
 ```
 
 ###Trend Decomposition
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
-ts_var=ts(study_var, frequency = 52)
-stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
-plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
-
-qplot(date,tv)+theme_bw()+ggtitle("TV Spending")+xlab("Date")+ylab("Dollars")
-
-stl_residuals=stl_obj$time.series[,3]
-
-temp_df=data.frame(tv,stl_residuals)
-ggplot(temp_df,aes(x=tv,y=stl_residuals))+theme_bw()+
-  geom_smooth(method="lm")+geom_point()+ggtitle("TV Spending Against Smoothed Residuals")+xlab("Dollars")+ylab("Residuals")
+stl_func(study_var,freq)
 
 ```
 
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
- new_r2=round(cor(tv,stl_residuals),2)
- old_r2=round(cor(tv,study_var),2)
- temp_df=data.frame(Message=c("Orignal Correlation:","Residuals Correlation:"),R2=c(old_r2,new_r2))
- pander(temp_df)
-
-```
 
 
 ###ARIMAX model with TV spend
-
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-
-#Not allowing for seasonal component until we have two years of data
-tv_arima=auto.arima(ts_var,xreg=c(tv),max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE,allowmean=FALSE)
-
- 
-# tv_arima_fcast=forecast(tv_arima,xreg=c(tv),1)
- arima_formula(tv_arima,tv)
-
-
-#Building coefficient and R2 table
-tv_arima_R2=round(cor(fitted(tv_arima),ts_var)^2,2)
-tmp_df=data.frame(coef(tv_arima))
-tmp_df=rbind(tmp_df,tv_arima_R2)
-rownames(tmp_df)[length(rownames(tmp_df))]="R2"
-pander(tmp_df)
-
-```
-
-
-```{r echo=FALSE, message=FALSE, warning=FALSE, eval=FALSE}
-#Secret manual modeling
-##Attempting to build the arim simple enough for excel
-#for (3,0,0) model
-ar1=coef(tv_arima)[grep("ar1",names(coef(tv_arima)))]
-ar2=coef(tv_arima)[grep("ar2",names(coef(tv_arima)))]
-ar3=coef(tv_arima)[grep("ar3",names(coef(tv_arima)))]
-
-tv_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))]
- 
-
-e_terms=3
- man_pred=rep(NA,length(study_var))
- man_pred[1:e_terms]=study_var[1:e_terms]
-for (i in (e_terms+1):length(ts_var)){
-  
-  exo_part=tv_coef*(tv[i]-ar1*tv[i-1]-ar2*tv[i-2]-ar3*tv[i-3])
-  
-  ar_part=ar1*ts_var[i-1]+ar2*ts_var[i-2]+ar3*ts_var[i-3]
-  
-  man_pred[i]=ar_part+exo_part
-}
-
-  man_pred[1:20]
-  fitted(tv_arima)[1:20]
-lim_max=max(max(man_pred,na.rm=TRUE),max(fitted(tv_arima),na.rm=TRUE))
-lim_min=min(min(man_pred,na.rm=TRUE),min(fitted(tv_arima),na.rm=TRUE))
-qplot(man_pred,fitted(tv_arima),xlim=c(lim_min,lim_max),ylim=c(lim_min,lim_max))
-man_fit=lm(man_pred~fitted(tv_arima))
-summary(man_fit)
-coef(man_fit)
-
+tv_arima=arima_func(stepwise_model,study_var,tv,freq)
+arima_func_sub(tv_arima,stepwise_model,study_var,tv,freq)
 
 ```
 
 
 ```{r echo=FALSE, message=FALSE}
 
-qplot(study_var,fitted(stepwise_model))+theme_bw()+ggtitle("Stepwise Polynomial Fit")+
-  xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
-qplot(study_var,as.vector(fitted(tv_arima)))+theme_bw()+ggtitle("ARIMAX Fit")+
-  xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
+# model_comp_plots(stepwise_model,tv_arima)
+transformed_plot(tv_arima,tv)
 
 ```
+
+
+
+###Model Validation
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+model_validation(tv_arima,study_var,tv,freq)
+```
+
 
 
 ## Direct Net Home Channel
@@ -392,149 +218,65 @@ date=channel_sessions_long$date[-na_inds]
 title_paste="Direct Net Home"
 ```
 
+
 ###2nd order polynomial fit
 ```{r echo=FALSE, message=FALSE}
-#frequency shoud be 52 (weeks per year), but we don't have two full periods
-
-poly_fit=lm(study_var~tv+I(tv^2))
-tmp_df=data.frame(round(coef(poly_fit),3))
-tmp_df=rbind(tmp_df,cor(fitted(poly_fit),na.omit(study_var))^2)
-rownames(tmp_df)[length(rownames(tmp_df))]="R2"
-pander(tmp_df)
-
+#frequency shoud be freq (weeks per year), but we don't have two full periods
+poly_fit=report_poly_fit_2(study_var,tv)
+report_poly_fit_2_sub(poly_fit,study_var)
 ```
 
 
 ###Stepwise polynomial fit
 ```{r echo=FALSE, message=FALSE, results="hide"}
-big_poly_fit=lm(study_var~tv+I(tv^2)+I(tv^3)+I(tv^4))
-stepwise_model=step(big_poly_fit,k=log(nrow(channel_sessions_long)),scope = list(lower = ~tv))
+stepwise_model=step_model(study_var,tv)
 ```
 
 ```{r echo=FALSE, message=FALSE}
-tmp_df=data.frame(round(coef(stepwise_model),3))
-tmp_df=rbind(tmp_df,cor(fitted(stepwise_model),na.omit(study_var))^2)
-rownames(tmp_df)[length(rownames(tmp_df))]="R2"
-pander(tmp_df)
+step_pander(stepwise_model)
+
 ```
 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-tmp_df=data.frame(tv.spend=tv,channel=study_var,poly=fitted(poly_fit),
-                  step=fitted(stepwise_model))
-ggplot(tmp_df) + theme_bw()+
-  geom_point(aes(x=tv.spend,y=channel,color=title_paste))+ 
-  geom_line(aes(x=tv.spend,y=poly,color="2nd Order Plynomial Fit"))+ 
-  geom_line(aes(x=tv.spend,y=step,color="Stepwise Polynomial Fit"))+ 
-  ggtitle("Model Fits")+xlab("TV Speding (Dollars)")+ylab("Sessions")+
-  guides(color=guide_legend(title="Models"))
 
-#This plot shows a major time trend component- implying previous models were useless
-t=Box.test(stepwise_model$residuals)
-box_p=round(t$p.value,4)
-qplot(channel_sessions_long$date[-na_inds],stepwise_model$residuals)+theme_bw()+
-  ggtitle(paste("Polynomial Fit Residuals, Box Test p-value",box_p) )+xlab("Date")+ylab("Residuals")
-
+poly_plots(tv,study_var,poly_fit,stepwise_model)
 
 ```
 
 ###Trend Decomposition
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
-ts_var=ts(study_var, frequency = 52)
-stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
-plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
-
-qplot(date,tv)+theme_bw()+ggtitle("TV Spending")+xlab("Date")+ylab("Dollars")
-
-stl_residuals=stl_obj$time.series[,3]
-
-temp_df=data.frame(tv,stl_residuals)
-ggplot(temp_df,aes(x=tv,y=stl_residuals))+theme_bw()+
-  geom_smooth(method="lm")+geom_point()+ggtitle("TV Spending Against Smoothed Residuals")+xlab("Dollars")+ylab("Residuals")
+stl_func(study_var,freq)
 
 ```
 
-
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
- new_r2=round(cor(tv,stl_residuals),2)
- old_r2=round(cor(tv,study_var),2)
- temp_df=data.frame(Message=c("Orignal Correlation:","Residuals Correlation:"),R2=c(old_r2,new_r2))
- pander(temp_df)
-
-```
 
 
 ###ARIMAX model with TV spend
-
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-
-#Not allowing for seasonal component until we have two years of data
-tv_arima=auto.arima(ts_var,xreg=c(tv),max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE,allowmean=FALSE)
- 
-# tv_arima_fcast=forecast(tv_arima,xreg=c(tv),h=0)
- arima_formula(tv_arima,tv)
-
-
-
-#Building coefficient and R2 table
-tv_arima_R2=round(cor(fitted(tv_arima),ts_var)^2,2)
-tmp_df=data.frame(coef(tv_arima))
-tmp_df=rbind(tmp_df,tv_arima_R2)
-rownames(tmp_df)[length(rownames(tmp_df))]="R2"
-pander(tmp_df)
+tv_arima=arima_func(stepwise_model,study_var,tv,freq)
+arima_func_sub(tv_arima,stepwise_model,study_var,tv,freq)
 
 ```
-
-
-```{r echo=FALSE, message=FALSE, warning=FALSE, eval=FALSE}
-#Secret manual modeling
-##Attempting to build the arim simple enough for excel
-#for (3,0,0) model
-ar1=coef(tv_arima)[grep("ar1",names(coef(tv_arima)))]
-ar2=coef(tv_arima)[grep("ar2",names(coef(tv_arima)))]
-ar3=coef(tv_arima)[grep("ar3",names(coef(tv_arima)))]
-
-tv_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))]
- 
-
-e_terms=3
- man_pred=rep(NA,length(study_var))
- man_pred[1:e_terms]=study_var[1:e_terms]
-for (i in (e_terms+1):length(study_var)){
-  
-  exo_part=tv_coef*(tv[i]-ar1*tv[i-1]-ar2*tv[i-2]-ar3*tv[i-3])
-  
-  ar_part=ar1*study_var[i-1]+ar2*study_var[i-2]+ar3*study_var[i-3]
-  
-  man_pred[i]=ar_part+exo_part
-}
-
-  man_pred[1:20]
-  fitted(tv_arima)[1:20]
-lim_max=max(max(man_pred,na.rm=TRUE),max(fitted(tv_arima),na.rm=TRUE))
-lim_min=min(min(man_pred,na.rm=TRUE),min(fitted(tv_arima),na.rm=TRUE))
-qplot(man_pred,fitted(tv_arima),xlim=c(lim_min,lim_max),ylim=c(lim_min,lim_max))
-man_fit=lm(man_pred~fitted(tv_arima))
-summary(man_fit)
-coef(man_fit)
-
-
-```
-
 
 
 ```{r echo=FALSE, message=FALSE}
 
-qplot(study_var,fitted(stepwise_model))+theme_bw()+ggtitle("Stepwise Polynomial Fit")+
-  xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
-qplot(study_var,as.vector(fitted(tv_arima)))+theme_bw()+ggtitle("ARIMAX Fit")+
-  xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
+# model_comp_plots(stepwise_model,tv_arima)
+transformed_plot(tv_arima,tv)
 
 ```
 
-## Direcy Home Channel
+
+
+###Model Validation
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+model_validation(tv_arima,study_var,tv,freq)
+```
+
+
+## Direct Home Channel
 
 ```{r echo=FALSE, message=FALSE}
 study_var=channel_sessions_long$direct.home
@@ -548,141 +290,57 @@ title_paste="Direct Home"
 
 ###2nd order polynomial fit
 ```{r echo=FALSE, message=FALSE}
-#frequency shoud be 52 (weeks per year), but we don't have two full periods
-poly_fit=lm(study_var~tv+I(tv^2))
-tmp_df=data.frame(round(coef(poly_fit),3))
-tmp_df=rbind(tmp_df,cor(fitted(poly_fit),na.omit(study_var))^2)
-rownames(tmp_df)[length(rownames(tmp_df))]="R2"
-pander(tmp_df)
-
+#frequency shoud be freq (weeks per year), but we don't have two full periods
+poly_fit=report_poly_fit_2(study_var,tv)
+report_poly_fit_2_sub(poly_fit,study_var)
 ```
 
 
 ###Stepwise polynomial fit
 ```{r echo=FALSE, message=FALSE, results="hide"}
-big_poly_fit=lm(study_var~tv+I(tv^2)+I(tv^3)+I(tv^4))
-stepwise_model=step(big_poly_fit,k=log(nrow(channel_sessions_long)),scope = list(lower = ~tv))
+stepwise_model=step_model(study_var,tv)
 ```
 
 ```{r echo=FALSE, message=FALSE}
-tmp_df=data.frame(round(coef(stepwise_model),3))
-tmp_df=rbind(tmp_df,cor(fitted(stepwise_model),na.omit(study_var))^2)
-rownames(tmp_df)[length(rownames(tmp_df))]="R2"
-pander(tmp_df)
+step_pander(stepwise_model)
+
 ```
 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-tmp_df=data.frame(tv.spend=tv,channel=study_var,poly=fitted(poly_fit),
-                  step=fitted(stepwise_model))
-ggplot(tmp_df) + theme_bw()+
-  geom_point(aes(x=tv.spend,y=channel,color=title_paste))+ 
-  geom_line(aes(x=tv.spend,y=poly,color="2nd Order Plynomial Fit"))+ 
-  geom_line(aes(x=tv.spend,y=step,color="Stepwise Polynomial Fit"))+ 
-  ggtitle("Model Fits")+xlab("TV Speding (Dollars)")+ylab("Sessions")+
-  guides(color=guide_legend(title="Models"))
 
-#This plot shows a major time trend component- implying previous models were useless
-t=Box.test(stepwise_model$residuals)
-box_p=round(t$p.value,4)
-qplot(channel_sessions_long$date[-na_inds],stepwise_model$residuals)+theme_bw()+
-  ggtitle(paste("Polynomial Fit Residuals, Box Test p-value",box_p) )+xlab("Date")+ylab("Residuals")
-
-
+poly_plots(tv,study_var,poly_fit,stepwise_model)
 
 ```
 
 ###Trend Decomposition
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
-ts_var=ts(study_var, frequency = 52)
-stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
-plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
-
-qplot(date,tv)+theme_bw()+ggtitle("TV Spending")+xlab("Date")+ylab("Dollars")
-
-stl_residuals=stl_obj$time.series[,3]
-
-temp_df=data.frame(tv,stl_residuals)
-ggplot(temp_df,aes(x=tv,y=stl_residuals))+theme_bw()+
-  geom_smooth(method="lm")+geom_point()+ggtitle("TV Spending Against Smoothed Residuals")+xlab("Dollars")+ylab("Residuals")
+stl_func(study_var,freq)
 
 ```
 
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
- new_r2=round(cor(tv,stl_residuals),2)
- old_r2=round(cor(tv,study_var),2)
- temp_df=data.frame(Message=c("Orignal Correlation:","Residuals Correlation:"),R2=c(old_r2,new_r2))
- pander(temp_df)
-
-```
 
 
 ###ARIMAX model with TV spend
-
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-
-
-#Not allowing for seasonal component until we have two years of data
-tv_arima=auto.arima(ts_var,xreg=c(tv),max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE,allowmean=FALSE)
- 
-# tv_arima_fcast=forecast(tv_arima,xreg=c(tv),h=0)
- arima_formula(tv_arima,tv)
-
-
-
-#Building coefficient and R2 table
-tv_arima_R2=round(cor(fitted(tv_arima),ts_var)^2,2)
-tmp_df=data.frame(coef(tv_arima))
-tmp_df=rbind(tmp_df,tv_arima_R2)
-rownames(tmp_df)[length(rownames(tmp_df))]="R2"
-pander(tmp_df)
-
-```
-
-
-```{r echo=FALSE, message=FALSE, warning=FALSE, eval=FALSE}
-#Secret manual modeling
-##Attempting to build the arim simple enough for excel
-#for (1,0,0) model
-
-ar1=coef(tv_arima)[grep("ar1",names(coef(tv_arima)))]
-tv_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))]
- 
-
-e_terms=1
- man_pred=rep(NA,length(study_var))
- man_pred[1:e_terms]=study_var[1:e_terms]
-for (i in (e_terms+1):length(study_var)){
-  
-  exo_part=tv_coef*(tv[i]-ar1*tv[i-1])
-  
-  ar_part=ar1*ts_var[i-1]
-  
-  man_pred[i]=ar_part+exo_part
-}
-
-  man_pred[1:20]
-  fitted(tv_arima)[1:20]
-lim_max=max(max(man_pred,na.rm=TRUE),max(fitted(tv_arima),na.rm=TRUE))
-lim_min=min(min(man_pred,na.rm=TRUE),min(fitted(tv_arima),na.rm=TRUE))
-qplot(man_pred,fitted(tv_arima),xlim=c(lim_min,lim_max),ylim=c(lim_min,lim_max))
-man_fit=lm(man_pred~fitted(tv_arima))
-summary(man_fit)
-coef(man_fit)
-
+tv_arima=arima_func(stepwise_model,study_var,tv,freq)
+arima_func_sub(tv_arima,stepwise_model,study_var,tv,freq)
 
 ```
 
 
 ```{r echo=FALSE, message=FALSE}
 
-qplot(study_var,fitted(stepwise_model))+theme_bw()+ggtitle("Stepwise Polynomial Fit")+
-  xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
-qplot(study_var,as.vector(fitted(tv_arima)))+theme_bw()+ggtitle("ARIMAX Fit")+
-  xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
+# model_comp_plots(stepwise_model,tv_arima)
+transformed_plot(tv_arima,tv)
+```
 
+
+
+###Model Validation
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+model_validation(tv_arima,study_var,tv,freq)
 ```
 
 
@@ -700,148 +358,59 @@ title_paste="Paid Brand"
 
 ###2nd order polynomial fit
 ```{r echo=FALSE, message=FALSE}
-
-poly_fit=lm(study_var~tv+I(tv^2))
-tmp_df=data.frame(round(coef(poly_fit),3))
-tmp_df=rbind(tmp_df,cor(fitted(poly_fit),na.omit(study_var))^2)
-rownames(tmp_df)[length(rownames(tmp_df))]="R2"
-pander(tmp_df)
-
+#frequency shoud be freq (weeks per year), but we don't have two full periods
+poly_fit=report_poly_fit_2(study_var,tv)
+report_poly_fit_2_sub(poly_fit,study_var)
 ```
 
 
 ###Stepwise polynomial fit
 ```{r echo=FALSE, message=FALSE, results="hide"}
-big_poly_fit=lm(study_var~tv+I(tv^2)+I(tv^3)+I(tv^4))
-stepwise_model=step(big_poly_fit,k=log(nrow(channel_sessions_long)),scope = list(lower = ~tv))
+stepwise_model=step_model(study_var,tv)
 ```
 
 ```{r echo=FALSE, message=FALSE}
-tmp_df=data.frame(round(coef(stepwise_model),3))
-tmp_df=rbind(tmp_df,cor(fitted(stepwise_model),na.omit(study_var))^2)
-rownames(tmp_df)[length(rownames(tmp_df))]="R2"
-pander(tmp_df)
+step_pander(stepwise_model)
+
 ```
 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-tmp_df=data.frame(tv.spend=tv,channel=study_var,poly=fitted(poly_fit),
-                  step=fitted(stepwise_model))
-ggplot(tmp_df) + theme_bw()+
-  geom_point(aes(x=tv.spend,y=channel,color=title_paste))+ 
-  geom_line(aes(x=tv.spend,y=poly,color="2nd Order Plynomial Fit"))+ 
-  geom_line(aes(x=tv.spend,y=step,color="Stepwise Polynomial Fit"))+ 
-  ggtitle("Model Fits")+xlab("TV Speding (Dollars)")+ylab("Sessions")+
-  guides(color=guide_legend(title="Models"))
 
-#This plot shows a major time trend component- implying previous models were useless
-t=Box.test(stepwise_model$residuals)
-box_p=round(t$p.value,4)
-qplot(channel_sessions_long$date[-na_inds],stepwise_model$residuals)+theme_bw()+
-  ggtitle(paste("Polynomial Fit Residuals, Box Test p-value",box_p) )+xlab("Date")+ylab("Residuals")
+poly_plots(tv,study_var,poly_fit,stepwise_model)
 
 ```
-
 
 ###Trend Decomposition
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
-#frequency shoud be 52 (weeks per year), but we don't have two full periods
-ts_var=ts(study_var, frequency = 52)
-stl_obj=try(stl(ts_var, s.window="periodic",robust=TRUE))
-if (class(stl_obj)=="try-error") {
-  ts_var=ts(study_var, frequency = 26)
-  stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
-}
-  plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
-
-
-qplot(date,tv)+theme_bw()+ggtitle("TV Spending")+xlab("Date")+ylab("Dollars")
-
-stl_residuals=stl_obj$time.series[,3]
-
-temp_df=data.frame(tv,stl_residuals)
-ggplot(temp_df,aes(x=tv,y=stl_residuals))+theme_bw()+
-  geom_smooth(method="lm")+geom_point()+ggtitle("TV Spending Against Smoothed Residuals")+xlab("Dollars")+ylab("Residuals")
-```
-
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
- new_r2=round(cor(tv,stl_residuals),2)
- old_r2=round(cor(tv,study_var),2)
- temp_df=data.frame(Message=c("Orignal Correlation:","Residuals Correlation:"),R2=c(old_r2,new_r2))
- pander(temp_df)
+stl_func(study_var,freq)
 
 ```
-
 
 
 
 ###ARIMAX model with TV spend
-
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-
-#Not allowing for seasonal component until we have two years of data
-tv_arima=auto.arima(ts_var,xreg=c(tv),max.P=0,max.D = 0,max.Q = 0,allowdrift=FALSE,allowmean=FALSE)
-
- 
-# tv_arima_fcast=forecast(tv_arima,xreg=c(tv),h=0)
- arima_formula(tv_arima,tv)
-
-
-
-#Building coefficient and R2 table
-tv_arima_R2=round(cor(fitted(tv_arima),ts_var)^2,2)
-tmp_df=data.frame(coef(tv_arima))
-tmp_df=rbind(tmp_df,tv_arima_R2)
-rownames(tmp_df)[length(rownames(tmp_df))]="R2"
-pander(tmp_df)
-
-```
-
-
-```{r echo=FALSE, message=FALSE, warning=FALSE, eval=FALSE}
-#Secret manual modeling
-##Attempting to build the arim simple enough for excel
-#for (1,1,1) model
-ma1=coef(tv_arima)[grep("ma1",names(coef(tv_arima)))]
-ar1=coef(tv_arima)[grep("ar1",names(coef(tv_arima)))]
-tv_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))]
- 
-
-e_terms=2
- man_pred=rep(NA,length(study_var))
- man_pred[1:e_terms]=study_var[1:e_terms]
-for (i in (e_terms+1):length(study_var)){
-  e_1=study_var[i-1]-man_pred[i-1]; if (sum(e_1)==0) e_1=0 else if (is.na(e_1)) e_1=0
-  ma_part=ma1*e_1
-  
-  exo_part=tv_coef*(tv[i]-tv[i-1]-ar1*(tv[i-1]-tv[i-2]))
-  
-  ar_part=study_var[i-1]+ar1*(study_var[i-1]-study_var[i-2])
-  
-  man_pred[i]=ar_part+ma_part+exo_part
-}
-
-  man_pred[1:20]
-  fitted(tv_arima)[1:20]
-lim_max=max(max(man_pred,na.rm=TRUE),max(fitted(tv_arima),na.rm=TRUE))
-lim_min=min(min(man_pred,na.rm=TRUE),min(fitted(tv_arima),na.rm=TRUE))
-qplot(man_pred,fitted(tv_arima),xlim=c(lim_min,lim_max),ylim=c(lim_min,lim_max))
-man_fit=lm(man_pred~fitted(tv_arima))
-summary(man_fit)
-coef(man_fit)
-
+tv_arima=arima_func(stepwise_model,study_var,tv,freq)
+arima_func_sub(tv_arima,stepwise_model,study_var,tv,freq)
 
 ```
 
 
 ```{r echo=FALSE, message=FALSE}
 
-
-qplot(study_var,fitted(stepwise_model))+theme_bw()+ggtitle("Stepwise Polynomial Fit")+
-  xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
-qplot(study_var,as.vector(fitted(tv_arima)))+theme_bw()+ggtitle("ARIMAX Fit")+
-  xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values")
+# model_comp_plots(stepwise_model,tv_arima)
+transformed_plot(tv_arima,tv)
 
 ```
+
+
+
+###Model Validation
+There are not enough data points to perform model validation for this channel
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+# model_validation(tv_arima,study_var,tv,freq)
+```
+
