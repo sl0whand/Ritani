@@ -44,7 +44,7 @@ ggplot(channel_session_gathered)+theme_bw()+
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 vars<-c("organic.net.home","organic.home","direct.net.home","direct.home","paid.brand.sessions")
-
+#always sort by descending date first!!
 ccf.df=data.frame(Correlation=NULL,Lag=NULL,Source=NULL)
 
 for (var in vars) {
@@ -133,7 +133,7 @@ transformed_plot(Airings_arima,Airings)
 
 ###Model Validation
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-model_validation(Airings_arima,study_var,Airings,freq)
+model_validation(Airings_arima,study_var,Airings,freq,date)
 ```
 
 ## Organic Home Channel
@@ -196,7 +196,8 @@ transformed_plot(Airings_arima,Airings)
 
 ###Model Validation
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-model_validation(Airings_arima,study_var,Airings,freq)
+model_validation(Airings_arima,study_var,Airings,freq,date)
+
 ```
 
 ## Direct Net Home Channel
@@ -261,7 +262,7 @@ transformed_plot(Airings_arima,Airings)
 ###Model Validation
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-model_validation(Airings_arima,study_var,Airings,freq)
+model_validation(Airings_arima,study_var,Airings,freq,date)
 ```
 
 ## Direcy Home Channel
@@ -325,7 +326,7 @@ transformed_plot(Airings_arima,Airings)
 ###Model Validation
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-model_validation(Airings_arima,study_var,Airings,freq)
+model_validation(Airings_arima,study_var,Airings,freq,date)
 ```
 
 ## Paid Brand Channel
@@ -389,5 +390,5 @@ transformed_plot(Airings_arima,Airings)
 ###Model Validation
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-model_validation(Airings_arima,study_var,Airings,freq)
+model_validation(Airings_arima,study_var,Airings,freq,date)
 ```

@@ -1,5 +1,5 @@
 ---
-title: "TV Channel Models"
+title: "TV Channel Models old tv vendor"
 output: html_document
 ---
 
@@ -26,7 +26,10 @@ source("report_functions.R")
 load(file="channel_sessions_long.rda")
 freq=52
 
+#manual crap- delet this
+channel_sessions_long$tv.spend[90:nrow(channel_sessions_long)]=0
 ```
+
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 channel_session_gathered=channel_sessions_long %>% gather(key=channel,value=sessions,2:6)
@@ -43,7 +46,7 @@ ggplot(channel_session_gathered)+theme_bw()+
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 vars<-c("organic.net.home","organic.home","direct.net.home","direct.home","paid.brand.sessions")
-
+#always sort by descending date first!!
 ccf.df=data.frame(Correlation=NULL,Lag=NULL,Source=NULL)
 for (var in vars) {
   ind=which(names(channel_sessions_long) == var)
@@ -130,9 +133,22 @@ transformed_plot(tv_arima,tv)
 ```
 
 
+###Forecasts
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,study_var)
+
+
+channel_sessions_long=channel_sessions_long %>% rename(organic.net.home.forecast=forecast) 
+   # plot(channel_sessions_long$organic.net.home.forecast)
+   # lines(study_var)
+
+```  
+
 ###Model Validation
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-model_validation(tv_arima,study_var,tv,freq)
+model_validation(tv_arima,study_var,tv,freq,date)
+
 ```
 
 
@@ -198,10 +214,21 @@ transformed_plot(tv_arima,tv)
 ```
 
 
+###Forecasts
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,study_var)
+
+
+channel_sessions_long=channel_sessions_long %>% rename(organic.home.forecast=forecast) 
+   # plot(channel_sessions_long$organic.net.home.forecast)
+   # lines(study_var)
+
+```  
 
 ###Model Validation
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-model_validation(tv_arima,study_var,tv,freq)
+model_validation(tv_arima,study_var,tv,freq,date)
 ```
 
 
@@ -269,10 +296,22 @@ transformed_plot(tv_arima,tv)
 ```
 
 
+###Forecasts
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,study_var)
+
+
+channel_sessions_long=channel_sessions_long %>% rename(direct.net.home.forecast=forecast) 
+   # plot(channel_sessions_long$organic.net.home.forecast)
+   # lines(study_var)
+
+```  
+
 
 ###Model Validation
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-model_validation(tv_arima,study_var,tv,freq)
+model_validation(tv_arima,study_var,tv,freq,date)
 ```
 
 
@@ -337,10 +376,21 @@ transformed_plot(tv_arima,tv)
 ```
 
 
+###Forecasts
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,study_var)
+
+
+channel_sessions_long=channel_sessions_long %>% rename(direct.home.forecast=forecast) 
+   # plot(channel_sessions_long$organic.net.home.forecast)
+   # lines(study_var)
+
+```  
 
 ###Model Validation
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-model_validation(tv_arima,study_var,tv,freq)
+model_validation(tv_arima,study_var,tv,freq,date)
 ```
 
 
@@ -406,11 +456,29 @@ transformed_plot(tv_arima,tv)
 ```
 
 
+###Forecasts
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,study_var)
+
+
+channel_sessions_long=channel_sessions_long %>% rename(paid.brand.sessions.forecast=forecast) 
+   # plot(channel_sessions_long$organic.net.home.forecast)
+   # lines(study_var)
+
+```  
+
 
 ###Model Validation
 There are not enough data points to perform model validation for this channel
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
-# model_validation(tv_arima,study_var,tv,freq)
+# model_validation(tv_arima,study_var,tv,freq,date)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# write.csv(channel_sessions_long,file="channel_sessions_long_with_forecasts.csv")
+# gs_upload("channel_sessions_long_with_forecasts.csv",sheet_title = "weekly_tv_channel_with_forecasts_upload_dont_edit")
+
 ```
 

@@ -126,8 +126,9 @@ arima_func=function(stepwise_model,study_var,tv,freq){
   }
   
   #Not allowing for seasonal component until we have two years of data
-  tv_arima=try(auto.arima(ts_var,xreg=xreg_matrix,allowdrift=FALSE,seasonal=FALSE,allowmean = FALSE))
-  summary(tv_arima)
+  tv_arima=try(auto.arima(ts_var,xreg=xreg_matrix,allowdrift=FALSE,allowmean = FALSE))
+  print(arimaorder(tv_arima))
+  
   
   
   return(tv_arima)
@@ -206,7 +207,7 @@ transformed_plot=function(tv_arima,tv){
 # tv_arima=Airings_arima
 # tv=Airings
 # freq=365
-model_validation=function(tv_arima,study_var,tv,freq){
+model_validation=function(tv_arima,study_var,tv,freq,date){
   
   #forcing ts form
   ts_var=ts(study_var, frequency = freq)
@@ -220,9 +221,9 @@ model_validation=function(tv_arima,study_var,tv,freq){
   xreg_matrix<-model.matrix(study_var~tv+I(tv^2))
   xreg_matrix=xreg_matrix[,-1]
   
-  pred_hor=3
+  pred_hor=5
   n <- length(ts_var)
-  k <- round(n*(3/4)); if (k<60) k=60 # minimum data length for fitting a model
+  k <- round(n*(1/2)); if (k<60) k=60 # minimum data length for fitting a model
   
   eff=n-k-pred_hor
   MAPE<- matrix(NA,eff)
@@ -236,7 +237,7 @@ model_validation=function(tv_arima,study_var,tv,freq){
     xreg_matrix_short=xreg_matrix[1:(k+(i-1)),]
     xreg_matrix_next=xreg_matrix[(k+i):(k+(i-1)+pred_hor),]
     
-    # order <- arimaorder(fit)
+    
     fit2 <- Arima(xshort, model=tv_arima,xreg=xreg_matrix_short,include.drift=FALSE, method="ML")
     # fit2 <- Arima(xshort, order=order[1:3], seasonal=order[4:6],xreg=xreg_matrix_short)
   
@@ -249,8 +250,47 @@ model_validation=function(tv_arima,study_var,tv,freq){
     MAPE[i] <- mean(abs(fcast_pred-xnext)/xnext)*100
   }
   
-  qplot(seq(1,eff),MAPE)+theme_bw()+geom_smooth(method="lm")+
+  qplot(date[(k+pred_hor+1):n],MAPE)+theme_bw()+geom_smooth(method="lm")+
     ggtitle("ARIMA Model Validation")+ylab("Mean Absolute Percent Error")+xlab("Additional Training Points")
   
 }
+
+
+add_forecast_to_df=function(channel_sessions_long,tv_arima,study_var){
+  
+  
+  
+  #Fitting old values
+  xreg_matrix<-model.matrix(study_var~tv+I(tv^2))
+  xreg_matrix=xreg_matrix[,-1]
+  
+  fcast2 <- forecast(tv_arima,xreg=xreg_matrix)
+  fcast_pred=fcast2[['mean']]
+  
+  #Forecasting new values
+  
+  #These 2 lines of code is far from robust- better to pass in the variable name later
+  tv_match_start=which(channel_sessions_long$tv.spend== tv[1])[1]
+  tv_start_ind=which(channel_sessions_long$tv.spend== tv[1])[1]+length(tv)
+  
+  tv_next=channel_sessions_long$tv.spend[tv_start_ind:nrow(channel_sessions_long)]
+  xreg_matrix_next=matrix(c(tv_next,tv_next^2),ncol=2)
+  
+  fcast3 <- forecast(tv_arima,xreg=xreg_matrix_next)
+  fcast_pred_next=fcast3[['mean']]
+  
+  full_forecast_fit=as.vector(c(as.vector(fitted(tv_arima)),fcast_pred_next))
+  channel_sessions_long$forecast=NA
+  channel_sessions_long$forecast[tv_match_start:nrow(channel_sessions_long)]=full_forecast_fit
+    
+  
+  #check package forecasts against
+#  plot(fcast2)
+  plot(fcast3)
+#   plot(channel_sessions_long$forecast)
+#   lines(study_var)
+  return(channel_sessions_long)
+}
+  
+  
 
