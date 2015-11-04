@@ -126,9 +126,10 @@ arima_func=function(stepwise_model,study_var,tv,freq){
   }
   
   #Not allowing for seasonal component until we have two years of data
-  tv_arima=try(auto.arima(ts_var,xreg=xreg_matrix,allowdrift=FALSE,allowmean = FALSE))
+  tv_arima=try(auto.arima(ts_var,xreg=xreg_matrix,allowmean = FALSE))
   print(arimaorder(tv_arima))
-  
+  # standard_resids=(tv_arima$residuals-mean(tv_arima$residuals))/sd(tv_arima$residuals)
+  # hist(standard_resids)
   
   
   return(tv_arima)
@@ -238,7 +239,7 @@ model_validation=function(tv_arima,study_var,tv,freq,date){
     xreg_matrix_next=xreg_matrix[(k+i):(k+(i-1)+pred_hor),]
     
     
-    fit2 <- Arima(xshort, model=tv_arima,xreg=xreg_matrix_short,include.drift=FALSE, method="ML")
+    fit2 <- Arima(xshort, model=tv_arima,xreg=xreg_matrix_short,method="ML")
     # fit2 <- Arima(xshort, order=order[1:3], seasonal=order[4:6],xreg=xreg_matrix_short)
   
     fcast2 <- forecast(fit2,xreg=xreg_matrix_next)
@@ -256,8 +257,13 @@ model_validation=function(tv_arima,study_var,tv,freq,date){
 }
 
 
-add_forecast_to_df=function(channel_sessions_long,tv_arima,study_var){
+add_forecast_to_df=function(channel_sessions_long,tv_arima,var_name,tv){
   
+  
+  study_var=channel_sessions_long[,which(names(channel_sessions_long)==var_name)][[1]]
+  na_inds=which(is.na(study_var))
+  tv=channel_sessions_long$tv.spend[-na_inds]
+  study_var=na.omit(study_var)
   
   
   #Fitting old values
@@ -268,12 +274,14 @@ add_forecast_to_df=function(channel_sessions_long,tv_arima,study_var){
   fcast_pred=fcast2[['mean']]
   
   #Forecasting new values
+  if (sum(which(diff(na_inds)>1))>0) {
+    new_tv_start_ind=na_inds[which(diff(na_inds)>1)[length(which(diff(na_inds)>1))]+1]
+  } else {
+    new_tv_start_ind=na_inds[1]
+  }
   
-  #These 2 lines of code is far from robust- better to pass in the variable name later
-  tv_match_start=which(channel_sessions_long$tv.spend== tv[1])[1]
-  tv_start_ind=which(channel_sessions_long$tv.spend== tv[1])[1]+length(tv)
   
-  tv_next=channel_sessions_long$tv.spend[tv_start_ind:nrow(channel_sessions_long)]
+  tv_next=channel_sessions_long$tv.spend[new_tv_start_ind:nrow(channel_sessions_long)]
   xreg_matrix_next=matrix(c(tv_next,tv_next^2),ncol=2)
   
   fcast3 <- forecast(tv_arima,xreg=xreg_matrix_next)
@@ -281,8 +289,10 @@ add_forecast_to_df=function(channel_sessions_long,tv_arima,study_var){
   
   full_forecast_fit=as.vector(c(as.vector(fitted(tv_arima)),fcast_pred_next))
   channel_sessions_long$forecast=NA
-  channel_sessions_long$forecast[tv_match_start:nrow(channel_sessions_long)]=full_forecast_fit
+  channel_sessions_long$forecast[(nrow(channel_sessions_long)-length(full_forecast_fit)+1):nrow(channel_sessions_long)]=full_forecast_fit
     
+  
+  
   
   #check package forecasts against
 #  plot(fcast2)

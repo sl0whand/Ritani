@@ -26,8 +26,6 @@ source("report_functions.R")
 load(file="channel_sessions_long.rda")
 freq=52
 
-#manual crap- delet this
-channel_sessions_long$tv.spend[90:nrow(channel_sessions_long)]=0
 ```
 
 
@@ -74,7 +72,9 @@ CCF_plot
 ## Organic Net Home Channel
 
 ```{r echo=FALSE, message=FALSE}
-study_var=channel_sessions_long$organic.net.home
+var_name="organic.net.home"
+study_var=channel_sessions_long[,which(names(channel_sessions_long)==var_name)][[1]]
+
 na_inds=which(is.na(study_var))
 tv=channel_sessions_long$tv.spend[-na_inds]
 study_var=na.omit(study_var)
@@ -136,7 +136,8 @@ transformed_plot(tv_arima,tv)
 ###Forecasts
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,study_var)
+channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,var_name)
+
 
 
 channel_sessions_long=channel_sessions_long %>% rename(organic.net.home.forecast=forecast) 
@@ -155,7 +156,10 @@ model_validation(tv_arima,study_var,tv,freq,date)
 ## Organic Home Channel
 
 ```{r echo=FALSE, message=FALSE}
-study_var=channel_sessions_long$organic.home
+var_name="organic.home"
+study_var=channel_sessions_long[,which(names(channel_sessions_long)==var_name)][[1]]
+
+
 na_inds=which(is.na(study_var))
 tv=channel_sessions_long$tv.spend[-na_inds]
 study_var=na.omit(study_var)
@@ -217,7 +221,7 @@ transformed_plot(tv_arima,tv)
 ###Forecasts
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,study_var)
+channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,var_name)
 
 
 channel_sessions_long=channel_sessions_long %>% rename(organic.home.forecast=forecast) 
@@ -236,7 +240,10 @@ model_validation(tv_arima,study_var,tv,freq,date)
 ## Direct Net Home Channel
 
 ```{r echo=FALSE, message=FALSE}
-study_var=channel_sessions_long$direct.net.home
+var_name="direct.net.home"
+study_var=channel_sessions_long[,which(names(channel_sessions_long)==var_name)][[1]]
+
+
 na_inds=which(is.na(study_var))
 tv=channel_sessions_long$tv.spend[-na_inds]
 study_var=na.omit(study_var)
@@ -299,7 +306,7 @@ transformed_plot(tv_arima,tv)
 ###Forecasts
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,study_var)
+channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,var_name)
 
 
 channel_sessions_long=channel_sessions_long %>% rename(direct.net.home.forecast=forecast) 
@@ -318,7 +325,9 @@ model_validation(tv_arima,study_var,tv,freq,date)
 ## Direct Home Channel
 
 ```{r echo=FALSE, message=FALSE}
-study_var=channel_sessions_long$direct.home
+var_name="direct.home"
+study_var=channel_sessions_long[,which(names(channel_sessions_long)==var_name)][[1]]
+
 na_inds=which(is.na(study_var))
 tv=channel_sessions_long$tv.spend[-na_inds]
 study_var=na.omit(study_var)
@@ -379,7 +388,7 @@ transformed_plot(tv_arima,tv)
 ###Forecasts
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,study_var)
+channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,var_name)
 
 
 channel_sessions_long=channel_sessions_long %>% rename(direct.home.forecast=forecast) 
@@ -397,7 +406,8 @@ model_validation(tv_arima,study_var,tv,freq,date)
 ## Paid Brand Channel
 
 ```{r echo=FALSE, message=FALSE}
-study_var=channel_sessions_long$paid.brand.sessions
+var_name="paid.brand.sessions"
+study_var=channel_sessions_long[,which(names(channel_sessions_long)==var_name)][[1]]
 na_inds=which(is.na(study_var))
 tv=channel_sessions_long$tv.spend[-na_inds]
 study_var=na.omit(study_var)
@@ -459,7 +469,7 @@ transformed_plot(tv_arima,tv)
 ###Forecasts
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,study_var)
+channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,var_name)
 
 
 channel_sessions_long=channel_sessions_long %>% rename(paid.brand.sessions.forecast=forecast) 
