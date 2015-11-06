@@ -100,12 +100,12 @@ na_inds=which(is.na(study_var))
 tv=channel_sessions_long$tv.spend[-na_inds]
 study_var=na.omit(study_var)
 date=channel_sessions_long$date[-na_inds]
-title_paste="Organic Net of Home"
+title_paste="TV Spending (Dollars)"
 
 ```
 
 ###Trend Decomposition
-The graph below decomposes the time series into 3 parts. The first sub-graph is a simple plot of observed behavior over time. The second sub-graph is the seasonal factor. This data spans two years. We considered each year to be one season, as such the seasonal plot repeats is itself once. The third sub-graph shows the larger smoothed trend of the entire span of data. The fourth sub-graph shows the residual values of the trend line, that is, how far from the true values the trend line is at each point in time. We can see that the residuals are not unrelated to time. This is diagnostic of trend behavior that can be accounted for using a time-series model.
+The graph below decomposes the time series into 3 parts. The first sub-graph is a simple plot of observed behavior over time. The second sub-graph is the seasonal factor. This data spans two years. We considered each year to be one season, as such the seasonal plot repeats itself once. The third sub-graph shows the larger smoothed trend of the entire span of data. The fourth sub-graph shows the residual values of the trend line and seasonal element, that is, how far from the true values the trend line and seasonal element is at each point in time. We can see that the residuals are not unrelated to time. This is diagnostic of trend behavior that can be accounted for using a time-series model.
 ```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
 stl_func(study_var,freq)
 
@@ -158,11 +158,11 @@ tv=channel_sessions_long$tv.spend[-na_inds]
 study_var=na.omit(study_var)
 date=channel_sessions_long$date[-na_inds]
 
-title_paste="Organic Home"
+title_paste="TV Spending (Dollars)"
 ```
 
 ###Trend Decomposition
-The graph below decomposes the time series into 3 parts. The first sub-graph is a simple plot of observed behavior over time. The second sub-graph is the seasonal factor. This data spans two years. We considered each year to be one season, as such the seasonal plot repeats is itself once. The third sub-graph shows the larger smoothed trend of the entire span of data. The fourth sub-graph shows the residual values of the trend line, that is, how far from the true values the trend line is at each point in time. We can see that the residuals are not unrelated to time. This is diagnostic of trend behavior that can be accounted for using a time-series model.
+The graph below decomposes the time series into 3 parts. The first sub-graph is a simple plot of observed behavior over time. The second sub-graph is the seasonal factor. This data spans two years. We considered each year to be one season, as such the seasonal plot repeats itself once. The third sub-graph shows the larger smoothed trend of the entire span of data. The fourth sub-graph shows the residual values of the trend line and seasonal element, that is, how far from the true values the trend line and seasonal element is at each point in time. We can see that the residuals are not unrelated to time. This is diagnostic of trend behavior that can be accounted for using a time-series model.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
 stl_func(study_var,freq)
@@ -214,13 +214,13 @@ tv=channel_sessions_long$tv.spend[-na_inds]
 study_var=na.omit(study_var)
 date=channel_sessions_long$date[-na_inds]
 
-title_paste="Direct Net Home"
+title_paste="TV Spending (Dollars)"
 ```
 
 
 
 ###Trend Decomposition
-The graph below decomposes the time series into 3 parts. The first sub-graph is a simple plot of observed behavior over time. The second sub-graph is the seasonal factor. This data spans two years. We considered each year to be one season, as such the seasonal plot repeats is itself once. The third sub-graph shows the larger smoothed trend of the entire span of data. The fourth sub-graph shows the residual values of the trend line, that is, how far from the true values the trend line is at each point in time. We can see that the residuals are not unrelated to time. This is diagnostic of trend behavior that can be accounted for using a time-series model.
+The graph below decomposes the time series into 3 parts. The first sub-graph is a simple plot of observed behavior over time. The second sub-graph is the seasonal factor. This data spans two years. We considered each year to be one season, as such the seasonal plot repeats itself once. The third sub-graph shows the larger smoothed trend of the entire span of data. The fourth sub-graph shows the residual values of the trend line and seasonal element, that is, how far from the true values the trend line and seasonal element is at each point in time. We can see that the residuals are not unrelated to time. This is diagnostic of trend behavior that can be accounted for using a time-series model.
 ```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
 stl_func(study_var,freq)
 
@@ -272,11 +272,11 @@ tv=channel_sessions_long$tv.spend[-na_inds]
 study_var=na.omit(study_var)
 date=channel_sessions_long$date[-na_inds]
 
-title_paste="Direct Home"
+title_paste="TV Spending (Dollars)"
 ```
 
 ###Trend Decomposition
-The graph below decomposes the time series into 3 parts. The first sub-graph is a simple plot of observed behavior over time. The second sub-graph is the seasonal factor. This data spans two years. We considered each year to be one season, as such the seasonal plot repeats is itself once. The third sub-graph shows the larger smoothed trend of the entire span of data. The fourth sub-graph shows the residual values of the trend line, that is, how far from the true values the trend line is at each point in time. We can see that the residuals are not unrelated to time. This is diagnostic of trend behavior that can be accounted for using a time-series model.
+The graph below decomposes the time series into 3 parts. The first sub-graph is a simple plot of observed behavior over time. The second sub-graph is the seasonal factor. This data spans two years. We considered each year to be one season, as such the seasonal plot repeats itself once. The third sub-graph shows the larger smoothed trend of the entire span of data. The fourth sub-graph shows the residual values of the trend line and seasonal element, that is, how far from the true values the trend line and seasonal element is at each point in time. We can see that the residuals are not unrelated to time. This is diagnostic of trend behavior that can be accounted for using a time-series model.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
 stl_func(study_var,freq)
@@ -328,12 +328,12 @@ tv=channel_sessions_long$tv.spend[-na_inds]
 study_var=na.omit(study_var)
 date=channel_sessions_long$date[-na_inds]
 
-title_paste="Paid Brand"
+title_paste="TV Spending (Dollars)"
 ```
 
 ###Trend Decomposition
 
-The graph below decomposes the time series into 3 parts. The first sub-graph is a simple plot of observed behavior over time. The second sub-graph is the seasonal factor. This data spans two years. We considered 26 weeks to be one season, as such the seasonal plot repeats is itself once. The third sub-graph shows the larger smoothed trend of the entire span of data. The fourth sub-graph shows the residual values of the trend line, that is, how far from the true values the trend line is at each point in time. We can see that the residuals are not unrelated to time. This is diagnostic of trend behavior that can be accounted for using a time-series model.
+The graph below decomposes the time series into 3 parts. The first sub-graph is a simple plot of observed behavior over time. The second sub-graph is the seasonal factor. This data spans two years. We considered 26 weeks to be one season, as such the seasonal plot repeats itself once. The third sub-graph shows the larger smoothed trend of the entire span of data. The fourth sub-graph shows the residual values of the trend line and seasonal element, that is, how far from the true values the trend line and seasonal element is at each point in time. We can see that the residuals are not unrelated to time. This is diagnostic of trend behavior that can be accounted for using a time-series model.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
 stl_func(study_var,freq)
@@ -374,6 +374,286 @@ channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,var_name
 ```  
 
 #Summary
-After isolating TV spending from the independent trend and behavior of  we can see that the impact of highly significant. These models bring several utilities. First, the relative effect of tv spend on each channel can be discerned by comparing their model coefficients (to be delivered). Second, the transformed impact can inform an appropriate amount of funds to allocate in the future.  Third, the models can be used to forecast into the near future, which has potential fraud detection applications. All of these utilities will grow stronger as more data are gathered- allowing for adding seasonal comparison to the models.
 
+After isolating TV spending from the independent trend and behavior of  we can see that the impact of highly significant. These models bring several utilities. First, the relative effect of tv spend on each channel can be discerned by comparing their model coefficients (to be delivered). Second, the transformed impact can inform an appropriate amount of funds to allocate in the future.  Third, the models can be used to forecast into the near future, which has potential fraud detection applications. All of these utilities will grow stronger as more data are gathered- allowing for adding seasonal comparison to the models. The models will also become more potent when provided with more granular data than a weekly aggregation.
+
+
+#Appendix, Model Diagnostics
+
+
+
+## Organic Net Home Channel
+
+```{r echo=FALSE, message=FALSE}
+var_name="organic.net.home"
+study_var=channel_sessions_long[,which(names(channel_sessions_long)==var_name)][[1]]
+
+na_inds=which(is.na(study_var))
+tv=channel_sessions_long$tv.spend[-na_inds]
+study_var=na.omit(study_var)
+date=channel_sessions_long$date[-na_inds]
+title_paste="Organic Net of Home"
+
+```
+
+###2nd order polynomial fit
+```{r echo=FALSE, message=FALSE}
+#frequency shoud be freq (weeks per year), but we don't have two full periods
+poly_fit=report_poly_fit_2(study_var,tv)
+report_poly_fit_2_sub(poly_fit,study_var)
+```
+
+
+###Stepwise polynomial fit
+```{r echo=FALSE, message=FALSE, results="hide"}
+stepwise_model=step_model(study_var,tv)
+```
+
+```{r echo=FALSE, message=FALSE}
+step_pander(stepwise_model)
+
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+poly_plots(tv,study_var,poly_fit,stepwise_model)
+
+```
+
+
+###ARIMAX model with TV spend
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+tv_arima=arima_func(stepwise_model,study_var,tv,freq)
+arima_func_sub(tv_arima,stepwise_model,study_var,tv,freq)
+
+```
+
+
+###Model Validation
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+model_validation(tv_arima,study_var,tv,freq,date)
+
+```
+
+
+## Organic Home Channel
+
+```{r echo=FALSE, message=FALSE}
+var_name="organic.home"
+study_var=channel_sessions_long[,which(names(channel_sessions_long)==var_name)][[1]]
+
+
+na_inds=which(is.na(study_var))
+tv=channel_sessions_long$tv.spend[-na_inds]
+study_var=na.omit(study_var)
+date=channel_sessions_long$date[-na_inds]
+
+title_paste="Organic Home"
+```
+
+###2nd order polynomial fit
+```{r echo=FALSE, message=FALSE}
+#frequency shoud be freq (weeks per year), but we don't have two full periods
+poly_fit=report_poly_fit_2(study_var,tv)
+report_poly_fit_2_sub(poly_fit,study_var)
+```
+
+
+###Stepwise polynomial fit
+```{r echo=FALSE, message=FALSE, results="hide"}
+stepwise_model=step_model(study_var,tv)
+```
+
+```{r echo=FALSE, message=FALSE}
+step_pander(stepwise_model)
+
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+poly_plots(tv,study_var,poly_fit,stepwise_model)
+
+```
+
+
+
+###ARIMAX model with TV spend
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+tv_arima=arima_func(stepwise_model,study_var,tv,freq)
+arima_func_sub(tv_arima,stepwise_model,study_var,tv,freq)
+
+```
+
+
+###Model Validation
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+model_validation(tv_arima,study_var,tv,freq,date)
+```
+
+
+
+## Direct Net Home Channel
+
+```{r echo=FALSE, message=FALSE}
+var_name="direct.net.home"
+study_var=channel_sessions_long[,which(names(channel_sessions_long)==var_name)][[1]]
+
+
+na_inds=which(is.na(study_var))
+tv=channel_sessions_long$tv.spend[-na_inds]
+study_var=na.omit(study_var)
+date=channel_sessions_long$date[-na_inds]
+
+title_paste="Direct Net Home"
+```
+
+
+###2nd order polynomial fit
+```{r echo=FALSE, message=FALSE}
+#frequency shoud be freq (weeks per year), but we don't have two full periods
+poly_fit=report_poly_fit_2(study_var,tv)
+report_poly_fit_2_sub(poly_fit,study_var)
+```
+
+
+###Stepwise polynomial fit
+```{r echo=FALSE, message=FALSE, results="hide"}
+stepwise_model=step_model(study_var,tv)
+```
+
+```{r echo=FALSE, message=FALSE}
+step_pander(stepwise_model)
+
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+poly_plots(tv,study_var,poly_fit,stepwise_model)
+
+```
+
+
+###ARIMAX model with TV spend
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+tv_arima=arima_func(stepwise_model,study_var,tv,freq)
+arima_func_sub(tv_arima,stepwise_model,study_var,tv,freq)
+
+```
+
+
+###Model Validation
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+model_validation(tv_arima,study_var,tv,freq,date)
+```
+
+
+## Direct Home Channel
+
+```{r echo=FALSE, message=FALSE}
+var_name="direct.home"
+study_var=channel_sessions_long[,which(names(channel_sessions_long)==var_name)][[1]]
+
+na_inds=which(is.na(study_var))
+tv=channel_sessions_long$tv.spend[-na_inds]
+study_var=na.omit(study_var)
+date=channel_sessions_long$date[-na_inds]
+
+title_paste="Direct Home"
+```
+
+###2nd order polynomial fit
+```{r echo=FALSE, message=FALSE}
+#frequency shoud be freq (weeks per year), but we don't have two full periods
+poly_fit=report_poly_fit_2(study_var,tv)
+report_poly_fit_2_sub(poly_fit,study_var)
+```
+
+
+###Stepwise polynomial fit
+```{r echo=FALSE, message=FALSE, results="hide"}
+stepwise_model=step_model(study_var,tv)
+```
+
+```{r echo=FALSE, message=FALSE}
+step_pander(stepwise_model)
+
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+poly_plots(tv,study_var,poly_fit,stepwise_model)
+
+```
+
+
+###ARIMAX model with TV spend
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+tv_arima=arima_func(stepwise_model,study_var,tv,freq)
+arima_func_sub(tv_arima,stepwise_model,study_var,tv,freq)
+
+```
+
+
+###Model Validation
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+model_validation(tv_arima,study_var,tv,freq,date)
+```
+
+
+## Paid Brand Channel
+
+```{r echo=FALSE, message=FALSE}
+var_name="paid.brand"
+study_var=channel_sessions_long[,which(names(channel_sessions_long)==var_name)][[1]]
+na_inds=which(is.na(study_var))
+tv=channel_sessions_long$tv.spend[-na_inds]
+study_var=na.omit(study_var)
+date=channel_sessions_long$date[-na_inds]
+
+title_paste="Paid Brand"
+```
+
+###2nd order polynomial fit
+```{r echo=FALSE, message=FALSE}
+#frequency shoud be freq (weeks per year), but we don't have two full periods
+poly_fit=report_poly_fit_2(study_var,tv)
+report_poly_fit_2_sub(poly_fit,study_var)
+```
+
+
+###Stepwise polynomial fit
+```{r echo=FALSE, message=FALSE, results="hide"}
+stepwise_model=step_model(study_var,tv)
+```
+
+```{r echo=FALSE, message=FALSE}
+step_pander(stepwise_model)
+
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+poly_plots(tv,study_var,poly_fit,stepwise_model)
+
+```
+
+
+###ARIMAX model with TV spend
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+tv_arima=arima_func(stepwise_model,study_var,tv,freq)
+arima_func_sub(tv_arima,stepwise_model,study_var,tv,freq)
+
+```
+
+
+
+###Model Validation
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+model_validation(tv_arima,study_var,tv,freq,date)
+```
 

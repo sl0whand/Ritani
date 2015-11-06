@@ -55,15 +55,18 @@ channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,var_name
 
 channel_sessions_long=channel_sessions_long %>% rename(organic.net.home.forecast=forecast) 
 
+
+### approximation of lift- only directionally accurate - violates several model assumptions
 lin_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))][1]
 sqr_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))][2]
 
 tv_lift=lin_coef*channel_sessions_long$tv.spend+sqr_coef*channel_sessions_long$tv.spend^2
 channel_sessions_long$organic.net.home.lift=tv_lift
 
-ggplot(channel_sessions_long)+
-  geom_line(aes(x=date,y=organic.net.home))+
-  geom_line(aes(x=date,y=organic.net.home.lift))
+
+ ggplot(channel_sessions_long)+
+   geom_line(aes(x=date,y=organic.net.home))+
+   geom_line(aes(x=date,y=organic.net.home.lift))
 
 ## Organic Home Channel
 var_name="organic.home"
@@ -93,9 +96,9 @@ sqr_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))][2]
 tv_lift=lin_coef*channel_sessions_long$tv.spend+sqr_coef*channel_sessions_long$tv.spend^2
 channel_sessions_long$organic.home.lift=tv_lift
 
-ggplot(channel_sessions_long)+
-  geom_line(aes(x=date,y=organic.home))+
-  geom_line(aes(x=date,y=tv_lift))
+# ggplot(channel_sessions_long)+
+#   geom_line(aes(x=date,y=organic.home))+
+#   geom_line(aes(x=date,y=tv_lift))
 
 ## Direct Net Home Channel
 
@@ -132,9 +135,9 @@ sqr_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))][2]
 tv_lift=lin_coef*channel_sessions_long$tv.spend+sqr_coef*channel_sessions_long$tv.spend^2
 channel_sessions_long$direct.net.home.lift=tv_lift
 
-ggplot(channel_sessions_long)+
-  geom_line(aes(x=date,y=direct.net.home))+
-  geom_line(aes(x=date,y=direct.net.home.lift))
+# ggplot(channel_sessions_long)+
+#   geom_line(aes(x=date,y=direct.net.home))+
+#   geom_line(aes(x=date,y=direct.net.home.lift))
 
 ## Direct Home Channel
 var_name="direct.home"
@@ -168,9 +171,9 @@ sqr_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))][2]
 tv_lift=lin_coef*channel_sessions_long$tv.spend+sqr_coef*channel_sessions_long$tv.spend^2
 channel_sessions_long$direct.home.lift=tv_lift
 
-ggplot(channel_sessions_long)+
-  geom_line(aes(x=date,y=direct.home))+
-  geom_line(aes(x=date,y=direct.home.lift))
+# ggplot(channel_sessions_long)+
+#   geom_line(aes(x=date,y=direct.home))+
+#   geom_line(aes(x=date,y=direct.home.lift))
 
 
 ## Paid Brand Channel
@@ -200,14 +203,14 @@ sqr_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))][2]
 tv_lift=lin_coef*channel_sessions_long$tv.spend+sqr_coef*channel_sessions_long$tv.spend^2
 channel_sessions_long$paid.brand.lift=tv_lift
 
-ggplot(channel_sessions_long)+
-  geom_line(aes(x=date,y=paid.brand))+
-  geom_line(aes(x=date,y=paid.brand.lift))
+# ggplot(channel_sessions_long)+
+#   geom_line(aes(x=date,y=paid.brand))+
+#   geom_line(aes(x=date,y=paid.brand.lift))
 
   
 write.csv(channel_sessions_long,file="temp.csv")
 gs_upload("temp.csv",
-          sheet_title ="weekly_tv_channel_with_forecasts")
+          sheet_title =paste("weekly_tv_channel_with_forecasts",as.character(Sys.Date()),sep="_"))
 
    
 

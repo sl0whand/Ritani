@@ -85,6 +85,8 @@ arima_func=function(stepwise_model,study_var,tv,freq){
 } # end of arima_func
 
 arima_func_sub=function(tv_arima,stepwise_model,study_var,tv,freq){
+  
+  print(tv_arima)
   # xreg_matrix<-model.matrix(formula(stepwise_model))
   xreg_matrix<-model.matrix(study_var~tv+I(tv^2))
   xreg_matrix=xreg_matrix[,-1]
@@ -129,11 +131,16 @@ arima_func_sub=function(tv_arima,stepwise_model,study_var,tv,freq){
 #   rownames(tmp_df)[length(rownames(tmp_df))]="d"
 #   tmp_df=rbind(tmp_df,q)
 #   rownames(tmp_df)[length(rownames(tmp_df))]="q"
-#   tmp_df=rbind(tmp_df,combined_obs)
-#   rownames(tmp_df)[length(rownames(tmp_df))]="combined_obs"
+  
   
   tmp_df=data.frame(box_p)
   rownames(tmp_df)[length(rownames(tmp_df))]="Box Test p-value"
+  
+  tmp_df=rbind(tmp_df,d_freedom)
+  rownames(tmp_df)[length(rownames(tmp_df))]="Degrees of Freedom"
+  
+  tmp_df=rbind(tmp_df,combined_obs)
+  rownames(tmp_df)[length(rownames(tmp_df))]="Combined Observations"
   
   tmp_df=rbind(tmp_df,tv_arima_R2)
   rownames(tmp_df)[length(rownames(tmp_df))]="R2"
@@ -157,15 +164,32 @@ transformed_plot=function(tv_arima,tv,title_paste){
   lin_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))][1]
   sqr_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))][2]
   # sqrt_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))][3]
-  tv_lim=max(tv)
-  tv_dummy=seq(0,tv_lim,by=round(tv_lim/200))
-  session_dummy=lin_coef*tv_dummy+sqr_coef*tv_dummy^2
+  # tv_lim=max(tv)
+  # tv_dummy=seq(0,tv_lim,by=round(tv_lim/200))
+  session_dummy=lin_coef*tv+sqr_coef*tv^2
   # +sqrt_coef*sqrt(tv_dummy)
   
-  qplot(tv_dummy,session_dummy)+theme_bw()+
-    ggtitle("Transformed Effect on Visits")+ylab("Sessions")+xlab(title_paste)
+  plot(qplot(tv,session_dummy)+theme_bw()+
+    ggtitle("Transformed Effect on Visits")+ylab("Sessions")+xlab(title_paste))
 } # transformed_plot
 
+
+transformed_plot_by_date=function(channel_sessions_long,tv_arima,var_name){
+  
+  var_ind=which(names(channel_sessions_long)==var_name)
+  
+  lin_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))][1]
+  sqr_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))][2]
+  
+  tv_lift=lin_coef*channel_sessions_long$tv.spend+sqr_coef*channel_sessions_long$tv.spend^2
+  
+  
+  
+  ggplot(channel_sessions_long)+
+    geom_line(aes(x=date,y=organic.net.home))+
+    geom_line(aes(x=date,y=organic.net.home.lift))
+  
+} # transformed_plot
 
 
 # tv_arima=Airings_arima
@@ -187,9 +211,14 @@ model_validation=function(tv_arima,study_var,tv,freq,date){
   
   pred_hor=5
   n <- length(ts_var)
-  k <- round(n*(1/2)); if (k<60) k=60 # minimum data length for fitting a model
+  k <- round(n*.5); if (k<60) k=60 # minimum data length for fitting a model
   
   eff=n-k-pred_hor
+  if (eff<10) {
+    print("There are not enough data to validate this model. You must have at least 70 observations")
+    return(NULL)
+  }  
+    
   MAPE<- matrix(NA,eff)
   order=arimaorder(tv_arima)
   
@@ -272,9 +301,9 @@ add_forecast_to_df=function(channel_sessions_long,tv_arima,var_name,tv){
    temp_df=data.frame(plot_date,full_forecast_fit,plot_var,plot_lower,plot_upper)
    
    #This should not be hard coded
-    plot_start="2015-07-01"
-    plot_length=length(which(channel_sessions_long$date>plot_start))
-   
+    # plot_start="2015-07-01"
+    # plot_length=length(which(channel_sessions_long$date>plot_start))
+   plot_length=24
    
    plot(ggplot(temp_df[(nrow(temp_df)-plot_length):nrow(temp_df),])+theme_bw()+
      geom_point(aes(x=plot_date,y=plot_var,color="Observed"))+

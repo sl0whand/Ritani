@@ -57,6 +57,7 @@ ggplot(channel_session_gathered)+theme_bw()+
 
 ```
 
+
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 vars<-c("organic.net.home","organic.home","direct.net.home","direct.home","paid.brand","GMV")
 #always sort by descending date first!!
@@ -85,6 +86,7 @@ ggplot(ccf.df %>% filter(Lag>=0),aes(x=Lag,y=Correlation,color=Source))+ theme_b
 
 
 ```
+
 
 ## Organic Net Home Channel
 

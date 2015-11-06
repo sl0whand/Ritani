@@ -132,7 +132,7 @@ channel_sessions_long=channel_sessions_long[,study_cols]  %>% arrange(date)
 channel_sessions_long=channel_sessions_long[-1,]
 
  save(channel_sessions_long,file="channel_sessions_long.rda")
- write.csv(channel_sessions_long,file="channel_sessions_long.csv")
- gs_upload("channel_sessions_long.csv",sheet_title = "weekly_tv_channel_upload_dont_edit")
+ # write.csv(channel_sessions_long,file="channel_sessions_long.csv")
+ # gs_upload("channel_sessions_long.csv",sheet_title = "weekly_tv_channel_upload_dont_edit")
 
 
