@@ -9,9 +9,11 @@ library(stats)
 library(pander)
 library(TTR)
 library(googlesheets)
-
-tv_data=tbl_df(read.xlsx("tvanalysis.xlsx",sheet=2,rows=c(1:95),cols=c(1,4:20)))
-tv_data$date=as.Date(as.character(tv_data$date),"%m/%d/%Y")+years(2000)
+############
+#Pulling TV data
+############
+tv_data=tbl_df(read.xlsx("tvanalysis_wgmv.xlsx",sheet="multi-channel comparison",rows=c(1:94),cols=c(1,4:20)))
+tv_data$date=as.Date(as.character(tv_data$date),"%m/%d/%y")
 na_inds=which(is.na(tv_data$date))
 #not great coding practice here
 for (ind in na_inds) {tv_data$date[ind]=tv_data$date[(ind-1)]+weeks(1)}
@@ -21,8 +23,16 @@ study_vars=c("date","tv.spend")
 study_cols=which(names(tv_data) %in% study_vars)
 sub_study=tv_data[,study_cols]  %>% arrange(desc(date))
 
+##################
+#Pulling GMV data
+##################
+GMV_data=tbl_df(read.xlsx("tvanalysis_wgmv.xlsx",sheet="GMV by week",cols=c(1,3)))
+GMV_data$date=as.Date(as.character(GMV_data$Wk.Started),"%m/%d/%y")
 
-##pulling older daily session data
+
+################################
+#pulling older daily session data
+##################################
 a=gs_title("channeldata with home")
 gs_channeldata=a %>% gs_read(ws = "channeldata")
 gs_channeldataroot=a %>% gs_read(ws = "channeldataroot")
@@ -47,8 +57,14 @@ channel_sessions_long$date=as.Date(paste(substr(as.character(channel_sessions_lo
                                          substr(as.character(channel_sessions_long$date),1,4),
                                          sep="-"), "%m-%d-%Y")
 
+###################
+#appending data sources
+##################
+channel_sessions_long=rbind(channel_sessions_long,
+                            GMV_data %>% select(GMV,date) %>% 
+                              rename(sessions= GMV) %>% 
+                              mutate(channel="GMV"))
 
-#appending tv spend
 channel_sessions_long=rbind(channel_sessions_long,
                             sub_study %>% select(tv.spend,date) %>% 
                               rename(sessions=tv.spend) %>% 
@@ -93,6 +109,7 @@ channel_sessions_long=channel_sessions_long %>% group_by(date,channel) %>%
 #casting
 channel_sessions_long=channel_sessions_long %>% spread(key=channel,value=sessions)
 names(channel_sessions_long) <- sub(" ", ".", names(channel_sessions_long))
+names(channel_sessions_long) <- sub(" ", ".", names(channel_sessions_long))
 
 #Replacing missing tv spend with 0
 channel_sessions_long$tv.spend[which(is.na(channel_sessions_long$tv.spend))]=0
@@ -102,18 +119,20 @@ channel_sessions_long$direct.net.home=channel_sessions_long$Direct-channel_sessi
 channel_sessions_long$direct.home=channel_sessions_long$Direct.home
 channel_sessions_long$organic.net.home=channel_sessions_long$Organic.Search-channel_sessions_long$Organic.Search.home
 channel_sessions_long$organic.home=channel_sessions_long$Organic.Search.home
-channel_sessions_long$paid.brand.sessions=channel_sessions_long$`Branded.Paid Search`
+channel_sessions_long$paid.brand=channel_sessions_long$Branded.Paid.Search
 
 
 
 study_vars=c("date","tv.spend","direct.net.home","direct.home",
              "organic.net.home","organic.home",
-             "paid.brand.sessions")
+             "paid.brand","GMV")
 study_cols=which(names(channel_sessions_long) %in% study_vars)
 channel_sessions_long=channel_sessions_long[,study_cols]  %>% arrange(date)
+#I don't believe the first observation is real
+channel_sessions_long=channel_sessions_long[-1,]
 
-save(channel_sessions_long,file="channel_sessions_long.rda")
-write.csv(channel_sessions_long,file="channel_sessions_long.csv")
-gs_upload("channel_sessions_long.csv",sheet_title = "weekly_tv_channel_upload_dont_edit")
+ save(channel_sessions_long,file="channel_sessions_long.rda")
+ write.csv(channel_sessions_long,file="channel_sessions_long.csv")
+ gs_upload("channel_sessions_long.csv",sheet_title = "weekly_tv_channel_upload_dont_edit")
 
 

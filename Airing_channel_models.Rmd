@@ -69,7 +69,6 @@ ggplot(ccf.df %>% filter(Lag>=0),aes(x=Lag,y=Correlation,color=Source))+ theme_b
                       labels=vars)
 
 
-
 ```
 
 ## Organic Net Home Channel

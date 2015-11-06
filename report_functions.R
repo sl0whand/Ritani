@@ -1,75 +1,22 @@
 
-
-arima_formula=function(arima_object,xreg1){
-  
-  #Isolating AR parts
-  ar_inds=grep("ar",names(coef(arima_object)))
-  if (sum(ar_inds)>0){
-    count=0
-    ar_formula="(1"
-    for (ar_ind in ar_inds) {
-      count=count+1
-      this_coef=round(coef(arima_object)[ar_ind],4)
-      ar_formula=paste0(ar_formula,"-(",this_coef,")*B^(",count,")")
-    }
-    ar_formula=paste0(ar_formula,")")
-  } else {ar_formula=""}
-  
-  #Isolating MA parts
-  ma_inds=grep("ma",names(coef(arima_object)))
-  if (sum(ma_inds)>0){
-    count=0
-    ma_formula="(1"
-    for (ma_ind in ma_inds) {
-      count=count+1
-      this_coef=round(coef(arima_object)[ma_ind],4)
-      ma_formula=paste0(ma_formula,"-(",this_coef,")*B^(",count,")")
-    }
-    ma_formula=paste0(ma_formula,")*")
-  } else {ma_formula=""}
-  
-  
-  #Isolating differencing
-  I_inds=as.numeric(substr(forecast(arima_object,xreg=xreg1)$method,9,9))
-  
-  if (sum(I_inds)>0){
-    count=0
-    I_formula="(1"
-    for (ma_ind in I_inds) {
-      count=count+1
-      I_formula=paste0(I_formula,"-B^(",count,")")
-    }
-    I_formula=paste0(I_formula,")")
-  } else {I_formula=""}
-  
-  tv_coef=round(coef(arima_object)[grep("tv",names(coef(arima_object)))],4)
-  
-  final_formula=paste0(ar_formula,I_formula,"*y_t=",
-                       tv_coef,"*",ar_formula,I_formula,"*x_t+",ma_formula,"e_t")
-  
-  print(final_formula)
-  
-}
-
-
 report_poly_fit_2=function(study_var,tv){
   poly_fit=lm(study_var~tv+I(tv^2))
   return(poly_fit)
-}
+} #end of report_poly_fit_2
 
 report_poly_fit_2_sub=function(poly_fit,study_var){
   tmp_df=data.frame(round(coef(poly_fit),3))
   tmp_df=rbind(tmp_df,cor(fitted(poly_fit),na.omit(study_var))^2)
   rownames(tmp_df)[length(rownames(tmp_df))]="R2"
   pander(tmp_df)
-}
+} #end of report_poly_fit_2_sub
 
 
 step_model=function(study_var,tv){
   big_poly_fit=lm(study_var~tv+I(tv^2)+I(tv^3)+I(tv^(1/2)))
   stepwise_model=step(big_poly_fit,k=log(nrow(channel_sessions_long)))
   return(stepwise_model)
-}
+} # end of step_model
 
 
 step_pander=function(stepwise_model){
@@ -78,7 +25,7 @@ step_pander=function(stepwise_model){
   tmp_df=rbind(tmp_df,cor(fitted(stepwise_model),na.omit(study_var))^2)
   rownames(tmp_df)[length(rownames(tmp_df))]="R2"
   pander(tmp_df)
-}
+} # step_pander
 
 
 poly_plots=function(tv,study_var,poly_fit,stepwise_model){
@@ -97,7 +44,7 @@ poly_plots=function(tv,study_var,poly_fit,stepwise_model){
   box_p=round(t$p.value,4)
   print(qplot(channel_sessions_long$date[-na_inds],stepwise_model$residuals)+theme_bw()+
           ggtitle(paste("Polynomial Fit Residuals, Box Test p-value",box_p) )+xlab("Date")+ylab("Residuals"))
-}
+} # poly_plots
 
 stl_func=function(study_var,freq){
   ts_var=ts(study_var, frequency = freq)
@@ -107,7 +54,7 @@ stl_func=function(study_var,freq){
     stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
   }
   plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
-}
+} # stl_func
 
 
 
@@ -121,19 +68,21 @@ arima_func=function(stepwise_model,study_var,tv,freq){
   ts_var=ts(study_var, frequency = freq)
   stl_obj=try(stl(ts_var, s.window="periodic",robust=TRUE))
   if (class(stl_obj)=="try-error") {
-    ts_var=ts(study_var, frequency = round(freq/2))
-    stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
-  }
+    ts_var=study_var
+    
+  } 
   
   #Not allowing for seasonal component until we have two years of data
-  tv_arima=try(auto.arima(ts_var,xreg=xreg_matrix,allowmean = FALSE))
-  print(arimaorder(tv_arima))
+  tv_arima=try(auto.arima(ts_var,xreg=xreg_matrix,allowdrift=FALSE,allowmean=FALSE))
+   # allowmean = FALSE
+  # print(tv_arima)
+  # print(arimaorder(tv_arima))
   # standard_resids=(tv_arima$residuals-mean(tv_arima$residuals))/sd(tv_arima$residuals)
   # hist(standard_resids)
   
   
   return(tv_arima)
-}
+} # end of arima_func
 
 arima_func_sub=function(tv_arima,stepwise_model,study_var,tv,freq){
   # xreg_matrix<-model.matrix(formula(stepwise_model))
@@ -143,65 +92,79 @@ arima_func_sub=function(tv_arima,stepwise_model,study_var,tv,freq){
   ts_var=ts(study_var, frequency = freq)
   stl_obj=try(stl(ts_var, s.window="periodic",robust=TRUE))
   if (class(stl_obj)=="try-error") {
-    ts_var=ts(study_var, frequency = round(freq/2))
-    stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
+    ts_var=study_var
+    
   }
   
-  arima_pdq=try(forecast(tv_arima,xreg=xreg_matrix)$method)
-  p=substr(arima_pdq,7,7)
-  d=substr(arima_pdq,9,9)
-  q=substr(arima_pdq,11,11)
+  #gathering degrees of freedom and max lag
+  arima.order=as.character(arimaorder(tv_arima))
+  if (length(arima.order)>3){
+    p_s=as.numeric(arima.order[5])
+    d_s=as.numeric(arima.order[6])
+  } else {
+    p_s=0
+    d_s=0
+  }
+  p=as.numeric(arima.order[1])
+  d=as.numeric(arima.order[2])
   
-  combined_obs=as.numeric(p)+as.numeric(d)+1
+  
+  combined_obs=p+d+p_s+d_s+1
+  d_freedom=nrow(xreg_matrix)-combined_obs-ncol(xreg_matrix)+1
+  
+  #performing t-tests on TV coefficients
+  # tv_arima$coef
+  # tv_arima$var.coef
   
   
   t=Box.test(tv_arima$residuals)
   box_p=round(t$p.value,4)
   
-  
-  
   #Building coefficient and R2 table
   tv_arima_R2=round(cor(fitted(tv_arima),ts_var)^2,2)
-  tmp_df=data.frame(coef(tv_arima))
-  tmp_df=rbind(tmp_df,p)
-  rownames(tmp_df)[length(rownames(tmp_df))]="p"
-  tmp_df=rbind(tmp_df,d)
-  rownames(tmp_df)[length(rownames(tmp_df))]="d"
-  tmp_df=rbind(tmp_df,q)
-  rownames(tmp_df)[length(rownames(tmp_df))]="q"
-  tmp_df=rbind(tmp_df,combined_obs)
-  rownames(tmp_df)[length(rownames(tmp_df))]="combined_obs"
+  # tmp_df=data.frame(coef(tv_arima))
+#   tmp_df=rbind(tmp_df,p)
+#   rownames(tmp_df)[length(rownames(tmp_df))]="p"
+#   tmp_df=rbind(tmp_df,d)
+#   rownames(tmp_df)[length(rownames(tmp_df))]="d"
+#   tmp_df=rbind(tmp_df,q)
+#   rownames(tmp_df)[length(rownames(tmp_df))]="q"
+#   tmp_df=rbind(tmp_df,combined_obs)
+#   rownames(tmp_df)[length(rownames(tmp_df))]="combined_obs"
   
-  tmp_df=rbind(tmp_df,box_p)
+  tmp_df=data.frame(box_p)
   rownames(tmp_df)[length(rownames(tmp_df))]="Box Test p-value"
   
   tmp_df=rbind(tmp_df,tv_arima_R2)
   rownames(tmp_df)[length(rownames(tmp_df))]="R2"
-  pander(tmp_df)
-}
+  names(tmp_df)="Values"
+  pander(tmp_df,style = "grid",caption ="ARIMX Model Performance Measures")
+  
+  
+} # arima_func_sub
 
 model_comp_plots=function(stepwise_model,tv_arima){
   print(qplot(study_var,fitted(stepwise_model))+theme_bw()+ggtitle("Stepwise Polynomial Fit")+
           xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values"))
   print(qplot(study_var,as.vector(fitted(tv_arima)))+theme_bw()+ggtitle("ARIMAX Fit")+
           xlab(paste(title_paste,"Sessions"))+ylab("Fitted Values"))
-}
+} # model_comp_plots
 
 
 
-transformed_plot=function(tv_arima,tv){
+transformed_plot=function(tv_arima,tv,title_paste){
   #scratch code for finding point of diminishing returns
   lin_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))][1]
   sqr_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))][2]
   # sqrt_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))][3]
   tv_lim=max(tv)
-  tv_dummy=seq(0,tv_lim)
+  tv_dummy=seq(0,tv_lim,by=round(tv_lim/200))
   session_dummy=lin_coef*tv_dummy+sqr_coef*tv_dummy^2
   # +sqrt_coef*sqrt(tv_dummy)
   
   qplot(tv_dummy,session_dummy)+theme_bw()+
-    ggtitle("Transformed Effect on Visits")+ylab("Sessions")
-}
+    ggtitle("Transformed Effect on Visits")+ylab("Sessions")+xlab(title_paste)
+} # transformed_plot
 
 
 
@@ -214,8 +177,8 @@ model_validation=function(tv_arima,study_var,tv,freq,date){
   ts_var=ts(study_var, frequency = freq)
   stl_obj=try(stl(ts_var, s.window="periodic",robust=TRUE))
   if (class(stl_obj)=="try-error") {
-    ts_var=ts(study_var, frequency = round(freq/2))
-    stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
+    ts_var=study_var
+    
   }
   
   #building exogeneous regressors
@@ -232,6 +195,7 @@ model_validation=function(tv_arima,study_var,tv,freq,date){
   
   
   for(i in 1:eff){
+    # print(i)
     xshort <-ts_var[1:(k+(i-1))]
     xnext <- ts_var[(k+i):(k+(i-1)+pred_hor)]
     
@@ -252,15 +216,15 @@ model_validation=function(tv_arima,study_var,tv,freq,date){
   }
   
   qplot(date[(k+pred_hor+1):n],MAPE)+theme_bw()+geom_smooth(method="lm")+
-    ggtitle("ARIMA Model Validation")+ylab("Mean Absolute Percent Error")+xlab("Additional Training Points")
+    ggtitle(paste("ARIMA Model Validation, Forecast Window of",pred_hor))+ylab("Mean Absolute Percent Error")+xlab("Additional Training Points")
   
-}
+} # end of model_validation
 
 
 add_forecast_to_df=function(channel_sessions_long,tv_arima,var_name,tv){
-  
-  
-  study_var=channel_sessions_long[,which(names(channel_sessions_long)==var_name)][[1]]
+  rows=nrow(channel_sessions_long)
+  var_ind=which(names(channel_sessions_long)==var_name)
+  study_var=channel_sessions_long[,var_ind][[1]]
   na_inds=which(is.na(study_var))
   tv=channel_sessions_long$tv.spend[-na_inds]
   study_var=na.omit(study_var)
@@ -281,26 +245,52 @@ add_forecast_to_df=function(channel_sessions_long,tv_arima,var_name,tv){
   }
   
   
-  tv_next=channel_sessions_long$tv.spend[new_tv_start_ind:nrow(channel_sessions_long)]
+  tv_next=channel_sessions_long$tv.spend[new_tv_start_ind:rows]
   xreg_matrix_next=matrix(c(tv_next,tv_next^2),ncol=2)
   
-  fcast3 <- forecast(tv_arima,xreg=xreg_matrix_next)
+  fcast3 <- forecast(tv_arima,xreg=xreg_matrix_next,level=80)
   fcast_pred_next=fcast3[['mean']]
   
   full_forecast_fit=as.vector(c(as.vector(fitted(tv_arima)),fcast_pred_next))
   channel_sessions_long$forecast=NA
-  channel_sessions_long$forecast[(nrow(channel_sessions_long)-length(full_forecast_fit)+1):nrow(channel_sessions_long)]=full_forecast_fit
+  channel_sessions_long$forecast[(rows-length(full_forecast_fit)+1):rows]=full_forecast_fit
     
-  
-  
   
   #check package forecasts against
 #  plot(fcast2)
-  plot(fcast3)
-#   plot(channel_sessions_long$forecast)
-#   lines(study_var)
+  # plot(fcast3)
+   # plot(channel_sessions_long$forecast)
+   # lines(study_var)
+  #Make a good ggplot!
+  
+   plot_date=channel_sessions_long$date[(rows-length(full_forecast_fit)+1):rows]
+   plot_var=channel_sessions_long[((rows-length(full_forecast_fit)+1):rows),var_ind][[1]]
+   low=fcast3$lower[1:length(fcast_pred_next)]
+   plot_lower=c(rep(NA,(length(full_forecast_fit))-length(low)),low)
+   up=fcast3$upper[1:length(fcast_pred_next)]
+   plot_upper=c(rep(NA,(length(full_forecast_fit))-length(up)),up)
+   temp_df=data.frame(plot_date,full_forecast_fit,plot_var,plot_lower,plot_upper)
+   
+   #This should not be hard coded
+    plot_start="2015-07-01"
+    plot_length=length(which(channel_sessions_long$date>plot_start))
+   
+   
+   plot(ggplot(temp_df[(nrow(temp_df)-plot_length):nrow(temp_df),])+theme_bw()+
+     geom_point(aes(x=plot_date,y=plot_var,color="Observed"))+
+     geom_line(aes(x=plot_date,y=full_forecast_fit,color="Modeled"))+
+     geom_line(aes(x=plot_date,y=plot_lower,color="Lower Bound, \n %80 Confidence"))+
+     geom_line(aes(x=plot_date,y=plot_upper,color="Upper Bound, \n %80 Confidence"))+
+     ggtitle("Model Fit and Forecast")+xlab("Date")+ylab("Sessions")+
+     theme(legend.title=element_blank()))
+     
+   
+  
   return(channel_sessions_long)
-}
+} # end of add_forecast_to_df
   
-  
+
+
+
+
 

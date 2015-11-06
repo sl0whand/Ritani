@@ -1,0 +1,39 @@
+
+
+Synopsis
+isolate how tv spending affects 
+
+
+Data over Time Graph
+
+Cross Correlation Graph
+The graph below illustrates the residual effects of money spent on TV advertising on other variables. The points at lag 0 represent the direct correlation. The points at lag 1 represent represent the correlation of TV spending and the compared variable one week later and so on. At the weekly level we can see that the greatest relationship occurs with not lag element 
+
+
+Seasonal Trend Decomposition Graph
+The graph below decomposes the time series into 3 parts. The first sub-graph is a simple plot of observed behavior over time. The second sub-graph is the seasonal factor. This data spans two years. We considered each year to be one season, as such the seasonal plot repeats is itself once. The third sub-graph shows the larger smoothed trend of the entire span of data. The fourth sub-graph shows the residual values of the trend line, that is, how far from the true values the trend line is at each point in time. We can see that the residuals are not unrelated to time. This is diagnostic of trend behavior that can be accounted for using a time-series model.
+
+
+
+Transformed Effect on Visits Graph
+The graph below shows the general effect on TV spending on site visits by this channel. In this case the model is a combination of ___  lagged variables. This representation of the model can be thought of as the expected gain in site visits dissipated over ___ weeks per dollar spent on TV advertising dissipated over ___ weeks.
+
+
+
+Forecast Graph
+
+
+
+
+Appendix
+
+
+
+Regression models
+
+
+regression model residuals
+
+
+Validation graph
+

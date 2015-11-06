@@ -1,0 +1,379 @@
+---
+title: "TV Spending Impact on Site Visits"
+output: html_document
+---
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE} 
+library(tidyr)
+library(dplyr)
+library(openxlsx)
+library(lubridate)
+library(ggplot2)
+library(gridExtra)
+library(forecast)
+library(stats)
+library(pander)
+library(TTR)
+library(googlesheets)
+
+source("report_functions.R")
+
+```
+
+
+
+```{r echo=FALSE, message=FALSE}
+load(file="channel_sessions_long.rda")
+# source("tv_channel_models_data_munge.R")
+freq=52
+
+#Pretending Comcast never happened
+# comcast_switch_date="2015-05-04"
+# adap_switch_date="2015-09-14"
+# comcast_ind=which(channel_sessions_long$date>comcast_switch_date & channel_sessions_long$date<adap_switch_date)
+# channel_sessions_long$tv.spend[comcast_ind]=0
+
+```
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+channel_sessions_long$GMV=channel_sessions_long$GMV/10^6
+channel_session_gathered=channel_sessions_long %>% gather(key=channel,value=sessions,2:8)
+channel_session_gathered$Units="Sessions"
+channel_session_gathered$Units[which(channel_session_gathered$channel=="tv.spend")]="TV (Dollars)"
+channel_session_gathered$Units[which(channel_session_gathered$channel=="GMV")]="GMV (10^6 Dollars)"
+# levels(channel_session_gathered$channel)
+
+ggplot(channel_session_gathered)+theme_bw()+
+  geom_line(aes(x=date,y=sessions,color=channel))+
+  facet_grid(Units~.,scales="free")+ylab("")+xlab("Date")+
+  ggtitle("Weekly TV Spending And Channel Sessions")+
+   theme(legend.title=element_blank())+
+  scale_color_manual(values=rainbow(7),
+                     labels=c("GMV","TV Spending","Direct Net of Home","Direct Home",
+                              "Organic Net of Home","Organic Home","Paid Brand"))
+  
+
+
+```
+
+The graph below illustrates the residual effects of money spent on TV advertising on other variables. The points at lag 0 represent the direct correlation. The points at lag 1 represent represent the correlation of TV spending and the compared variable one week later and so on. At the weekly level we can see that the greatest relationship occurs with no lag element 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+vars<-c("organic.net.home","organic.home","direct.net.home","direct.home","paid.brand","GMV")
+#always sort by descending date first!!
+ccf.df=data.frame(Correlation=NULL,Lag=NULL,Source=NULL)
+for (var in vars) {
+  ind=which(names(channel_sessions_long) == var)
+  study_var=channel_sessions_long[,ind]
+  na_inds=which(is.na(study_var))
+  tv=channel_sessions_long$tv.spend[-na_inds]
+  study_var=na.omit(study_var)
+  
+  
+  ccf_temp<-ccf(tv,study_var,plot=FALSE)
+  ccf_temp_df=data.frame(Correlation=ccf_temp$acf,Lag=ccf_temp$lag,Source=rep(var,length(ccf_temp$lag)))
+  
+  ccf.df<-rbind(ccf.df,ccf_temp_df)
+}
+
+ggplot(ccf.df %>% filter(Lag>=0),aes(x=Lag,y=Correlation,color=Source))+ theme_bw()+
+  geom_point()+ggtitle("TV Spending Delayed Effect")+xlab("Lag (Weeks)")+
+  scale_color_manual( values=rainbow(length(vars)),
+                      name="Source",
+                      breaks=vars,
+                      labels=c("Organic Net of Home","Organic Home",
+                               "Direct Net of Home","Direct Home","Paid Brand","GMV"))
+
+
+```
+
+## Organic Net Of Home Channel
+
+```{r echo=FALSE, message=FALSE}
+var_name="organic.net.home"
+study_var=channel_sessions_long[,which(names(channel_sessions_long)==var_name)][[1]]
+
+na_inds=which(is.na(study_var))
+tv=channel_sessions_long$tv.spend[-na_inds]
+study_var=na.omit(study_var)
+date=channel_sessions_long$date[-na_inds]
+title_paste="Organic Net of Home"
+
+```
+
+###Trend Decomposition
+The graph below decomposes the time series into 3 parts. The first sub-graph is a simple plot of observed behavior over time. The second sub-graph is the seasonal factor. This data spans two years. We considered each year to be one season, as such the seasonal plot repeats is itself once. The third sub-graph shows the larger smoothed trend of the entire span of data. The fourth sub-graph shows the residual values of the trend line, that is, how far from the true values the trend line is at each point in time. We can see that the residuals are not unrelated to time. This is diagnostic of trend behavior that can be accounted for using a time-series model.
+```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
+stl_func(study_var,freq)
+
+```
+
+
+
+###ARIMAX model with TV spend
+The graph below shows the general effect on TV spending on site visits by this channel. In this case the model is a combination of 1  lagged variables. This representation of the model can be thought of as the expected gain in site visits dissipated over 2 weeks per dollar spent on TV advertising dissipated over 2 weeks.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+tv_arima=arima_func(stepwise_model,study_var,tv,freq)
+# arima_func_sub(tv_arima,stepwise_model,study_var,tv,freq)
+
+```
+
+
+```{r echo=FALSE, message=FALSE}
+
+# model_comp_plots(stepwise_model,tv_arima)
+transformed_plot(tv_arima,tv,title_paste)
+
+```
+
+
+###Forecasts
+The graph below shows the model fit and prediction intervals. It is important to note that predicition intervals, unlike confidence intervals, expand over time. This means that any forecast model should only be relied upon for short forecast periods. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,var_name)
+
+
+
+# channel_sessions_long=channel_sessions_long %>% rename(organic.net.home.forecast=forecast) 
+   # plot(channel_sessions_long$organic.net.home.forecast)
+   # lines(study_var)
+
+```  
+
+
+## Organic Home Channel
+
+```{r echo=FALSE, message=FALSE}
+var_name="organic.home"
+study_var=channel_sessions_long[,which(names(channel_sessions_long)==var_name)][[1]]
+
+
+na_inds=which(is.na(study_var))
+tv=channel_sessions_long$tv.spend[-na_inds]
+study_var=na.omit(study_var)
+date=channel_sessions_long$date[-na_inds]
+
+title_paste="Organic Home"
+```
+
+###Trend Decomposition
+The graph below decomposes the time series into 3 parts. The first sub-graph is a simple plot of observed behavior over time. The second sub-graph is the seasonal factor. This data spans two years. We considered each year to be one season, as such the seasonal plot repeats is itself once. The third sub-graph shows the larger smoothed trend of the entire span of data. The fourth sub-graph shows the residual values of the trend line, that is, how far from the true values the trend line is at each point in time. We can see that the residuals are not unrelated to time. This is diagnostic of trend behavior that can be accounted for using a time-series model.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
+stl_func(study_var,freq)
+
+```
+
+
+###ARIMAX model with TV spend
+The graph below shows the general effect on TV spending on site visits by this channel. In this case the model is a combination of 3  lagged variables. This representation of the model can be thought of as the expected gain in site visits dissipated over 4 weeks per dollar spent on TV advertising dissipated over 4 weeks.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+tv_arima=arima_func(stepwise_model,study_var,tv,freq)
+# arima_func_sub(tv_arima,stepwise_model,study_var,tv,freq)
+
+```
+
+
+```{r echo=FALSE, message=FALSE}
+
+# model_comp_plots(stepwise_model,tv_arima)
+transformed_plot(tv_arima,tv,title_paste)
+
+```
+
+
+###Forecasts
+The graph below shows the model fit and prediction intervals. It is important to note that predicition intervals, unlike confidence intervals, expand over time. This means that any forecast model should only be relied upon for short forecast periods. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,var_name)
+
+
+# channel_sessions_long=channel_sessions_long %>% rename(organic.home.forecast=forecast) 
+   # plot(channel_sessions_long$organic.net.home.forecast)
+   # lines(study_var)
+
+```  
+
+
+## Direct Net of Home Channel
+
+```{r echo=FALSE, message=FALSE}
+var_name="direct.net.home"
+study_var=channel_sessions_long[,which(names(channel_sessions_long)==var_name)][[1]]
+
+
+na_inds=which(is.na(study_var))
+tv=channel_sessions_long$tv.spend[-na_inds]
+study_var=na.omit(study_var)
+date=channel_sessions_long$date[-na_inds]
+
+title_paste="Direct Net Home"
+```
+
+
+
+###Trend Decomposition
+The graph below decomposes the time series into 3 parts. The first sub-graph is a simple plot of observed behavior over time. The second sub-graph is the seasonal factor. This data spans two years. We considered each year to be one season, as such the seasonal plot repeats is itself once. The third sub-graph shows the larger smoothed trend of the entire span of data. The fourth sub-graph shows the residual values of the trend line, that is, how far from the true values the trend line is at each point in time. We can see that the residuals are not unrelated to time. This is diagnostic of trend behavior that can be accounted for using a time-series model.
+```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
+stl_func(study_var,freq)
+
+```
+
+
+
+###ARIMAX model with TV spend
+The graph below shows the general effect on TV spending on site visits by this channel. In this case the model is a combination of 1 lagged variables. This representation of the model can be thought of as the expected gain in site visits dissipated over 2 weeks per dollar spent on TV advertising dissipated over 2 weeks.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+tv_arima=arima_func(stepwise_model,study_var,tv,freq)
+# arima_func_sub(tv_arima,stepwise_model,study_var,tv,freq)
+
+```
+
+
+```{r echo=FALSE, message=FALSE}
+
+# model_comp_plots(stepwise_model,tv_arima)
+transformed_plot(tv_arima,tv,title_paste)
+
+```
+
+
+###Forecasts
+
+The graph below shows the model fit and prediction intervals. It is important to note that predicition intervals, unlike confidence intervals, expand over time. This means that any forecast model should only be relied upon for short forecast periods. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,var_name)
+
+
+# channel_sessions_long=channel_sessions_long %>% rename(direct.net.home.forecast=forecast) 
+   # plot(channel_sessions_long$organic.net.home.forecast)
+   # lines(study_var)
+
+```  
+
+
+## Direct Home Channel
+
+```{r echo=FALSE, message=FALSE}
+var_name="direct.home"
+study_var=channel_sessions_long[,which(names(channel_sessions_long)==var_name)][[1]]
+
+na_inds=which(is.na(study_var))
+tv=channel_sessions_long$tv.spend[-na_inds]
+study_var=na.omit(study_var)
+date=channel_sessions_long$date[-na_inds]
+
+title_paste="Direct Home"
+```
+
+###Trend Decomposition
+The graph below decomposes the time series into 3 parts. The first sub-graph is a simple plot of observed behavior over time. The second sub-graph is the seasonal factor. This data spans two years. We considered each year to be one season, as such the seasonal plot repeats is itself once. The third sub-graph shows the larger smoothed trend of the entire span of data. The fourth sub-graph shows the residual values of the trend line, that is, how far from the true values the trend line is at each point in time. We can see that the residuals are not unrelated to time. This is diagnostic of trend behavior that can be accounted for using a time-series model.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
+stl_func(study_var,freq)
+
+```
+
+
+
+###ARIMAX model with TV spend
+
+The graph below shows the general effect on TV spending on site visits by this channel. In this case the model is a combination of 1 lagged variables. This representation of the model can be thought of as the expected gain in site visits dissipated over 2 weeks per dollar spent on TV advertising dissipated over 2 weeks.
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+tv_arima=arima_func(stepwise_model,study_var,tv,freq)
+# arima_func_sub(tv_arima,stepwise_model,study_var,tv,freq)
+
+```
+
+
+```{r echo=FALSE, message=FALSE}
+
+# model_comp_plots(stepwise_model,tv_arima)
+transformed_plot(tv_arima,tv,title_paste)
+```
+
+
+###Forecasts
+The graph below shows the model fit and prediction intervals. It is important to note that predicition intervals, unlike confidence intervals, expand over time. This means that any forecast model should only be relied upon for short forecast periods. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,var_name)
+
+
+# channel_sessions_long=channel_sessions_long %>% rename(direct.home.forecast=forecast) 
+   # plot(channel_sessions_long$organic.net.home.forecast)
+   # lines(study_var)
+
+```  
+
+
+## Paid Brand Channel
+
+```{r echo=FALSE, message=FALSE}
+var_name="paid.brand"
+study_var=channel_sessions_long[,which(names(channel_sessions_long)==var_name)][[1]]
+na_inds=which(is.na(study_var))
+tv=channel_sessions_long$tv.spend[-na_inds]
+study_var=na.omit(study_var)
+date=channel_sessions_long$date[-na_inds]
+
+title_paste="Paid Brand"
+```
+
+###Trend Decomposition
+
+The graph below decomposes the time series into 3 parts. The first sub-graph is a simple plot of observed behavior over time. The second sub-graph is the seasonal factor. This data spans two years. We considered 26 weeks to be one season, as such the seasonal plot repeats is itself once. The third sub-graph shows the larger smoothed trend of the entire span of data. The fourth sub-graph shows the residual values of the trend line, that is, how far from the true values the trend line is at each point in time. We can see that the residuals are not unrelated to time. This is diagnostic of trend behavior that can be accounted for using a time-series model.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, results="hide"}
+stl_func(study_var,freq)
+
+```
+
+
+
+###ARIMAX model with TV spend
+The graph below shows the general effect on TV spending on site visits by this channel. In this case the model is a combination of 1  lagged variables. This representation of the model can be thought of as the expected gain in site visits dissipated over 2 weeks per dollar spent on TV advertising dissipated over 2 weeks.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+tv_arima=arima_func(stepwise_model,study_var,tv,freq)
+# arima_func_sub(tv_arima,stepwise_model,study_var,tv,freq)
+
+```
+
+
+```{r echo=FALSE, message=FALSE}
+
+# model_comp_plots(stepwise_model,tv_arima)
+transformed_plot(tv_arima,tv,title_paste)
+
+```
+
+
+###Forecasts
+The graph below shows the model fit and prediction intervals. It is important to note that predicition intervals, unlike confidence intervals, expand over time. This means that any forecast model should only be relied upon for short forecast periods. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,var_name)
+
+
+# channel_sessions_long=channel_sessions_long %>% rename(paid.brand.forecast=forecast) 
+   # plot(channel_sessions_long$organic.net.home.forecast)
+   # lines(study_var)
+
+```  
+
+#Summary
+After isolating TV spending from the independent trend and behavior of  we can see that the impact of highly significant. These models bring several utilities. First, the relative effect of tv spend on each channel can be discerned by comparing their model coefficients (to be delivered). Second, the transformed impact can inform an appropriate amount of funds to allocate in the future.  Third, the models can be used to forecast into the near future, which has potential fraud detection applications. All of these utilities will grow stronger as more data are gathered- allowing for adding seasonal comparison to the models.
+
+
