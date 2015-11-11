@@ -3,6 +3,9 @@ title: "TV Spending Impact on Site Visits"
 output: html_document
 ---
 
+#Synopsis
+
+This report explores how investing in TV advertising affects site visits. The report will look into five primary sources of sites traffic: organic net of home, organic home, direct net of home, direct home, and paid brand. A time-series model will be fit for each channel. This will allow us to isolate the effect of tv spending on site visits from the natural trend of those channels had no spending occured. The tv spending contribution will be considered the directionally accurate lift effect.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE} 
 library(tidyr)
@@ -36,6 +39,9 @@ freq=52
 
 ```
 
+#Exploration
+
+This graph plots tv spending, gross merchandising value, and sites visits by channel over time.
 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
@@ -63,7 +69,7 @@ The graph below illustrates the residual effects of money spent on TV advertisin
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 vars<-c("organic.net.home","organic.home","direct.net.home","direct.home","paid.brand","GMV")
-#always sort by descending date first!!
+#always sort by ascending date first!!
 ccf.df=data.frame(Correlation=NULL,Lag=NULL,Source=NULL)
 for (var in vars) {
   ind=which(names(channel_sessions_long) == var)
@@ -114,19 +120,48 @@ stl_func(study_var,freq)
 
 
 ###ARIMAX model with TV spend
-The graph below shows the general effect on TV spending on site visits by this channel. In this case the model is a combination of 1  lagged variables. This representation of the model can be thought of as the expected gain in site visits dissipated over 2 weeks per dollar spent on TV advertising dissipated over 2 weeks.
-
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 tv_arima=arima_func(stepwise_model,study_var,tv,freq)
 # arima_func_sub(tv_arima,stepwise_model,study_var,tv,freq)
 
+  arima.order=as.character(arimaorder(tv_arima))
+  if (length(arima.order)>3){
+    p_s=as.numeric(arima.order[5])
+    d_s=as.numeric(arima.order[6])
+  } else {
+    p_s=0
+    d_s=0
+  }
+  p=as.numeric(arima.order[1])
+  d=as.numeric(arima.order[2])
+  
+  
+  combined_obs=p+d+p_s+d_s+1
+  
+
 ```
+
+
+The graph below shows the general effect on TV spending on site visits by this channel. In this case the model is a combination of `r combined_obs -1`  lagged varialble(s). This representation of the model can be thought of as the expected gain in site visits dissipated over `r combined_obs` weeks per dollar spent on TV advertising dissipated over `r combined_obs` weeks.
+
+
 
 
 ```{r echo=FALSE, message=FALSE}
 
 # model_comp_plots(stepwise_model,tv_arima)
 transformed_plot(tv_arima,tv,title_paste)
+  
+ 
+
+```
+
+The graph below shows the estimates of TV spending lift over time.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+# model_comp_plots(stepwise_model,tv_arima)
+transformed_plot_by_date(channel_sessions_long,tv_arima,var_name)
 
 ```
 
@@ -136,8 +171,6 @@ The graph below shows the model fit and prediction intervals. It is important to
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,var_name)
-
-
 
 # channel_sessions_long=channel_sessions_long %>% rename(organic.net.home.forecast=forecast) 
    # plot(channel_sessions_long$organic.net.home.forecast)
@@ -171,19 +204,45 @@ stl_func(study_var,freq)
 
 
 ###ARIMAX model with TV spend
-The graph below shows the general effect on TV spending on site visits by this channel. In this case the model is a combination of 3  lagged variables. This representation of the model can be thought of as the expected gain in site visits dissipated over 4 weeks per dollar spent on TV advertising dissipated over 4 weeks.
-
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 tv_arima=arima_func(stepwise_model,study_var,tv,freq)
 # arima_func_sub(tv_arima,stepwise_model,study_var,tv,freq)
 
+  arima.order=as.character(arimaorder(tv_arima))
+  if (length(arima.order)>3){
+    p_s=as.numeric(arima.order[5])
+    d_s=as.numeric(arima.order[6])
+  } else {
+    p_s=0
+    d_s=0
+  }
+  p=as.numeric(arima.order[1])
+  d=as.numeric(arima.order[2])
+  
+  
+  combined_obs=p+d+p_s+d_s+1
+  
+
 ```
+
+
+The graph below shows the general effect on TV spending on site visits by this channel. In this case the model is a combination of `r combined_obs -1`  lagged varialble(s). This representation of the model can be thought of as the expected gain in site visits dissipated over `r combined_obs` weeks per dollar spent on TV advertising dissipated over `r combined_obs` weeks.
 
 
 ```{r echo=FALSE, message=FALSE}
 
 # model_comp_plots(stepwise_model,tv_arima)
 transformed_plot(tv_arima,tv,title_paste)
+   
+
+```
+
+The graph below shows the estimates of TV spending lift over time.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+# model_comp_plots(stepwise_model,tv_arima)
+transformed_plot_by_date(channel_sessions_long,tv_arima,var_name)
 
 ```
 
@@ -226,22 +285,46 @@ stl_func(study_var,freq)
 
 ```
 
-
-
 ###ARIMAX model with TV spend
-The graph below shows the general effect on TV spending on site visits by this channel. In this case the model is a combination of 1 lagged variables. This representation of the model can be thought of as the expected gain in site visits dissipated over 2 weeks per dollar spent on TV advertising dissipated over 2 weeks.
-
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 tv_arima=arima_func(stepwise_model,study_var,tv,freq)
 # arima_func_sub(tv_arima,stepwise_model,study_var,tv,freq)
 
+  arima.order=as.character(arimaorder(tv_arima))
+  if (length(arima.order)>3){
+    p_s=as.numeric(arima.order[5])
+    d_s=as.numeric(arima.order[6])
+  } else {
+    p_s=0
+    d_s=0
+  }
+  p=as.numeric(arima.order[1])
+  d=as.numeric(arima.order[2])
+  
+  
+  combined_obs=p+d+p_s+d_s+1
+  
+
 ```
+
+
+The graph below shows the general effect on TV spending on site visits by this channel. In this case the model is a combination of `r combined_obs -1`  lagged varialble(s). This representation of the model can be thought of as the expected gain in site visits dissipated over `r combined_obs` weeks per dollar spent on TV advertising dissipated over `r combined_obs` weeks.
 
 
 ```{r echo=FALSE, message=FALSE}
 
 # model_comp_plots(stepwise_model,tv_arima)
 transformed_plot(tv_arima,tv,title_paste)
+ 
+```
+
+
+The graph below shows the estimates of TV spending lift over time.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+# model_comp_plots(stepwise_model,tv_arima)
+transformed_plot_by_date(channel_sessions_long,tv_arima,var_name)
 
 ```
 
@@ -284,23 +367,48 @@ stl_func(study_var,freq)
 ```
 
 
-
 ###ARIMAX model with TV spend
-
-The graph below shows the general effect on TV spending on site visits by this channel. In this case the model is a combination of 1 lagged variables. This representation of the model can be thought of as the expected gain in site visits dissipated over 2 weeks per dollar spent on TV advertising dissipated over 2 weeks.
-
-
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 tv_arima=arima_func(stepwise_model,study_var,tv,freq)
 # arima_func_sub(tv_arima,stepwise_model,study_var,tv,freq)
 
+  arima.order=as.character(arimaorder(tv_arima))
+  if (length(arima.order)>3){
+    p_s=as.numeric(arima.order[5])
+    d_s=as.numeric(arima.order[6])
+  } else {
+    p_s=0
+    d_s=0
+  }
+  p=as.numeric(arima.order[1])
+  d=as.numeric(arima.order[2])
+  
+  
+  combined_obs=p+d+p_s+d_s+1
+  
+
 ```
+
+
+The graph below shows the general effect on TV spending on site visits by this channel. In this case the model is a combination of `r combined_obs -1`  lagged varialble(s). This representation of the model can be thought of as the expected gain in site visits dissipated over `r combined_obs` weeks per dollar spent on TV advertising dissipated over `r combined_obs` weeks.
 
 
 ```{r echo=FALSE, message=FALSE}
 
 # model_comp_plots(stepwise_model,tv_arima)
 transformed_plot(tv_arima,tv,title_paste)
+  
+   
+  
+```
+
+The graph below shows the estimates of TV spending lift over time.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+# model_comp_plots(stepwise_model,tv_arima)
+transformed_plot_by_date(channel_sessions_long,tv_arima,var_name)
+
 ```
 
 
@@ -341,24 +449,49 @@ stl_func(study_var,freq)
 ```
 
 
-
 ###ARIMAX model with TV spend
-The graph below shows the general effect on TV spending on site visits by this channel. In this case the model is a combination of 1  lagged variables. This representation of the model can be thought of as the expected gain in site visits dissipated over 2 weeks per dollar spent on TV advertising dissipated over 2 weeks.
-
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 tv_arima=arima_func(stepwise_model,study_var,tv,freq)
 # arima_func_sub(tv_arima,stepwise_model,study_var,tv,freq)
 
+  arima.order=as.character(arimaorder(tv_arima))
+  if (length(arima.order)>3){
+    p_s=as.numeric(arima.order[5])
+    d_s=as.numeric(arima.order[6])
+  } else {
+    p_s=0
+    d_s=0
+  }
+  p=as.numeric(arima.order[1])
+  d=as.numeric(arima.order[2])
+  
+  
+  combined_obs=p+d+p_s+d_s+1
+  
+
 ```
+
+
+The graph below shows the general effect on TV spending on site visits by this channel. In this case the model is a combination of `r combined_obs -1`  lagged varialble(s). This representation of the model can be thought of as the expected gain in site visits dissipated over `r combined_obs` weeks per dollar spent on TV advertising dissipated over `r combined_obs` weeks.
 
 
 ```{r echo=FALSE, message=FALSE}
 
 # model_comp_plots(stepwise_model,tv_arima)
 transformed_plot(tv_arima,tv,title_paste)
+   
+  
 
 ```
 
+The graph below shows the estimates of TV spending lift over time.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+# model_comp_plots(stepwise_model,tv_arima)
+transformed_plot_by_date(channel_sessions_long,tv_arima,var_name)
+
+```
 
 ###Forecasts
 The graph below shows the model fit and prediction intervals. It is important to note that predicition intervals, unlike confidence intervals, expand over time. This means that any forecast model should only be relied upon for short forecast periods. 
@@ -426,7 +559,9 @@ poly_plots(tv,study_var,poly_fit,stepwise_model)
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 tv_arima=arima_func(stepwise_model,study_var,tv,freq)
 arima_func_sub(tv_arima,stepwise_model,study_var,tv,freq)
-
+ 
+ 
+    
 ```
 
 
@@ -483,7 +618,8 @@ poly_plots(tv,study_var,poly_fit,stepwise_model)
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 tv_arima=arima_func(stepwise_model,study_var,tv,freq)
 arima_func_sub(tv_arima,stepwise_model,study_var,tv,freq)
-
+ 
+ 
 ```
 
 
@@ -540,7 +676,8 @@ poly_plots(tv,study_var,poly_fit,stepwise_model)
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 tv_arima=arima_func(stepwise_model,study_var,tv,freq)
 arima_func_sub(tv_arima,stepwise_model,study_var,tv,freq)
-
+ 
+ 
 ```
 
 
@@ -594,7 +731,8 @@ poly_plots(tv,study_var,poly_fit,stepwise_model)
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 tv_arima=arima_func(stepwise_model,study_var,tv,freq)
 arima_func_sub(tv_arima,stepwise_model,study_var,tv,freq)
-
+ 
+ 
 ```
 
 
@@ -647,7 +785,8 @@ poly_plots(tv,study_var,poly_fit,stepwise_model)
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 tv_arima=arima_func(stepwise_model,study_var,tv,freq)
 arima_func_sub(tv_arima,stepwise_model,study_var,tv,freq)
-
+ 
+ 
 ```
 
 

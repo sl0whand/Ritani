@@ -53,20 +53,16 @@ tv_arima=arima_func(stepwise_model,study_var,tv,freq)
 
 channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,var_name)
 
+#renaming variables to be like this channel
 channel_sessions_long=channel_sessions_long %>% rename(organic.net.home.forecast=forecast) 
+channel_sessions_long=channel_sessions_long %>% rename(organic.net.home.lift=tv_lift) 
+channel_sessions_long=channel_sessions_long %>% rename(organic.net.home.lift.low.bound=tv_lift_low_bound) 
+channel_sessions_long=channel_sessions_long %>% rename(organic.net.home.lift.upper.bound=tv_lift_upper_bound) 
 
-
-### approximation of lift- only directionally accurate - violates several model assumptions
-lin_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))][1]
-sqr_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))][2]
-
-tv_lift=lin_coef*channel_sessions_long$tv.spend+sqr_coef*channel_sessions_long$tv.spend^2
-channel_sessions_long$organic.net.home.lift=tv_lift
-
-
- ggplot(channel_sessions_long)+
-   geom_line(aes(x=date,y=organic.net.home))+
-   geom_line(aes(x=date,y=organic.net.home.lift))
+# Plots for sanity check
+#  ggplot(channel_sessions_long)+
+#    geom_line(aes(x=date,y=organic.net.home))+
+#    geom_line(aes(x=date,y=organic.net.home.lift))
 
 ## Organic Home Channel
 var_name="organic.home"
@@ -88,14 +84,13 @@ tv_arima=arima_func(stepwise_model,study_var,tv,freq)
 
 channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,var_name)
 
+#renaming variables to be like this channel
 channel_sessions_long=channel_sessions_long %>% rename(organic.home.forecast=forecast) 
+channel_sessions_long=channel_sessions_long %>% rename(organic.home.lift=tv_lift) 
+channel_sessions_long=channel_sessions_long %>% rename(organic.home.lift.low.bound=tv_lift_low_bound) 
+channel_sessions_long=channel_sessions_long %>% rename(organic.home.lift.upper.bound=tv_lift_upper_bound) 
 
-lin_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))][1]
-sqr_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))][2]
-
-tv_lift=lin_coef*channel_sessions_long$tv.spend+sqr_coef*channel_sessions_long$tv.spend^2
-channel_sessions_long$organic.home.lift=tv_lift
-
+# Plots for sanity check
 # ggplot(channel_sessions_long)+
 #   geom_line(aes(x=date,y=organic.home))+
 #   geom_line(aes(x=date,y=tv_lift))
@@ -124,17 +119,14 @@ tv_arima=arima_func(stepwise_model,study_var,tv,freq)
   
 channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,var_name)
 
+#renaming variables to be like this channel
 
 channel_sessions_long=channel_sessions_long %>% rename(direct.net.home.forecast=forecast) 
+channel_sessions_long=channel_sessions_long %>% rename(direct.net.home.lift=tv_lift) 
+channel_sessions_long=channel_sessions_long %>% rename(direct.net.home.lift.low.bound=tv_lift_low_bound) 
+channel_sessions_long=channel_sessions_long %>% rename(direct.net.home.lift.upper.bound=tv_lift_upper_bound) 
 
-
-
-lin_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))][1]
-sqr_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))][2]
-
-tv_lift=lin_coef*channel_sessions_long$tv.spend+sqr_coef*channel_sessions_long$tv.spend^2
-channel_sessions_long$direct.net.home.lift=tv_lift
-
+# Plots for sanity check
 # ggplot(channel_sessions_long)+
 #   geom_line(aes(x=date,y=direct.net.home))+
 #   geom_line(aes(x=date,y=direct.net.home.lift))
@@ -159,18 +151,16 @@ tv_arima=arima_func(stepwise_model,study_var,tv,freq)
 
   
  channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,var_name)
-
+ #renaming variables to be like this channel
+ 
 
 channel_sessions_long=channel_sessions_long %>% rename(direct.home.forecast=forecast) 
+channel_sessions_long=channel_sessions_long %>% rename(direct.home.lift=tv_lift) 
+channel_sessions_long=channel_sessions_long %>% rename(direct.home.lift.low.bound=tv_lift_low_bound) 
+channel_sessions_long=channel_sessions_long %>% rename(direct.home.lift.upper.bound=tv_lift_upper_bound) 
 
 
-
-lin_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))][1]
-sqr_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))][2]
-
-tv_lift=lin_coef*channel_sessions_long$tv.spend+sqr_coef*channel_sessions_long$tv.spend^2
-channel_sessions_long$direct.home.lift=tv_lift
-
+# Plots for sanity check
 # ggplot(channel_sessions_long)+
 #   geom_line(aes(x=date,y=direct.home))+
 #   geom_line(aes(x=date,y=direct.home.lift))
@@ -193,16 +183,14 @@ tv_arima=arima_func(stepwise_model,study_var,tv,freq)
 ###Forecasts
 
 channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,var_name)
+#renaming variables to be like this channel
 
 channel_sessions_long=channel_sessions_long %>% rename(paid.brand.sessions.forecast=forecast) 
+channel_sessions_long=channel_sessions_long %>% rename(paid.brand.lift=tv_lift) 
+channel_sessions_long=channel_sessions_long %>% rename(paid.brand.lift.low.bound=tv_lift_low_bound) 
+channel_sessions_long=channel_sessions_long %>% rename(paid.brand.lift.upper.bound=tv_lift_upper_bound)
 
-
-lin_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))][1]
-sqr_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))][2]
-
-tv_lift=lin_coef*channel_sessions_long$tv.spend+sqr_coef*channel_sessions_long$tv.spend^2
-channel_sessions_long$paid.brand.lift=tv_lift
-
+# Plots for sanity check
 # ggplot(channel_sessions_long)+
 #   geom_line(aes(x=date,y=paid.brand))+
 #   geom_line(aes(x=date,y=paid.brand.lift))
