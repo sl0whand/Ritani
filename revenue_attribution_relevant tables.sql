@@ -1,20 +1,20 @@
-SELECT channel_id, clickstream_id, session_id, pre_purchase
+SELECT *
 FROM channel_touchpoints
 ;
 
-SELECT id, name
+SELECT *
 FROM channels
 ;
 
-SELECT id, pre_purchase
+SELECT*
 FROM sessions
 ;
 
-SELECT id, order_number, user_id, total, state
+SELECT *
 FROM clickstreams
 ;
 
-SELECT clickstream_id, impression_type, convertro_impressions_id
+SELECT *
 FROM display_impressions
 ;
 

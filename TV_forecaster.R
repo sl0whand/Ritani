@@ -9,60 +9,77 @@ library(stats)
 library(pander)
 library(TTR)
 library(googlesheets)
-
+library(glmnet)
+library(caret)
 
 
 
 load(file="channel_sessions_long.rda")
 na_date=which(is.na(channel_sessions_long$date))
 if (length(na_date)>0) channel_sessions_long=channel_sessions_long[-na_date,]
+channel_sessions_long$GMV=NULL
 #Starting when TV turns on
- train_start_date="2014-04-28"
- train_start_ind=which(channel_sessions_long$date<=train_start_date)
- channel_sessions_tv_pred=channel_sessions_long[-train_start_ind,]
+#  train_start_date="2014-04-28"
+#  train_start_ind=which(channel_sessions_long$date<=train_start_date)
+#  channel_sessions_tv_pred=channel_sessions_long[-train_start_ind,]
+#  
+ train_end_date="2015-11-01"
+ train_end_ind=which(channel_sessions_long$date>=train_end_date)
+ channel_sessions_tv_pred=channel_sessions_long[-train_end_ind,]
  
- train_end_date="2015-11-02"
- train_end_ind=which(channel_sessions_tv_pred$date>=train_end_date)
- channel_sessions_tv_pred=channel_sessions_tv_pred[-train_end_ind,]
  
+ channel_sessions_tv_pred=na.omit(channel_sessions_tv_pred)
  
- # channel_sessions_tv_pred=na.omit(channel_sessions_tv_pred)
+ inTrain = createDataPartition(y=channel_sessions_tv_pred$tv.spend, p = .6)[[1]]
+ training = channel_sessions_tv_pred[ inTrain,]
+ testing = channel_sessions_tv_pred[-inTrain,]
 
 #simple lm fit
-lm_fit=lm(channel_sessions_tv_pred$tv.spend~0+
-            channel_sessions_tv_pred$direct.net.home+
-            channel_sessions_tv_pred$direct.home+
-            channel_sessions_tv_pred$organic.net.home+
-            channel_sessions_tv_pred$organic.home+
-            # channel_sessions_tv_pred$paid.brand+
-            I(channel_sessions_tv_pred$direct.net.home^.5)+
-            I(channel_sessions_tv_pred$direct.home^.5)+
-            I(channel_sessions_tv_pred$organic.net.home^.5)+
-            I(channel_sessions_tv_pred$organic.home^.5))
-            # I(channel_sessions_tv_pred$paid.brand^.5)
-          
+lm_fit=lm(data=training,tv.spend~direct.net.home+direct.home+organic.net.home+organic.home+paid.brand+
+            I(direct.net.home^.5)+I(direct.home^.5)+I(organic.net.home^.5)+I(organic.home^.5)+I(paid.brand^.5))
 summary(lm_fit) 
 
-qplot(channel_sessions_tv_pred$date,lm_fit$residuals)
-qplot(channel_sessions_tv_pred$tv.spend,fitted(lm_fit))
-t=Box.test(lm_fit$residuals)
+
+test_pred=predict(lm_fit,newdata=testing)
+cor(test_pred,testing$tv.spend)^2
+
+
+
+ x <- model.matrix(formula(lm_fit),data=training)
+ x=x[,-1]
+ y<- as.matrix(training$tv.spend)
+ fit<-glmnet(x,y, family="gaussian", alpha=0.9, lambda=0.001,intercept=FALSE)
+# summarize the fit
+ coefficients(fit)
+ # make predictions
+ predictions <- predict(fit, x)
+ # summarize accuracy
+ cor(y,predictions)^2
+ 
+ test_x=model.matrix(formula(lm_fit),data=testing)
+ test_x=test_x[,-1]
+ test_predictions <- predict(fit, test_x)
+ test_y=as.matrix(testing$tv.spend)
+ cor(test_y,test_predictions)^2
+ 
+ 
+ round(coef(fit),2)
+ 
+ 
+######################################################
+# Validation is succesful no need to look further
+#####################################################
+
+          
+
+resids=predictions-channel_sessions_tv_pred$tv.spend
+plot(x=channel_sessions_tv_pred$date,y=resids)
+plot(channel_sessions_tv_pred$tv.spend,predictions)
+t=Box.test(resids)
 round(t$p.value,4)
 
 ##actual model fit
-xreg_matrix<-model.matrix(channel_sessions_tv_pred$tv.spend~
-                            channel_sessions_tv_pred$direct.net.home+
-                            channel_sessions_tv_pred$direct.home+
-                            channel_sessions_tv_pred$organic.net.home+
-                            channel_sessions_tv_pred$organic.home+
-                            # channel_sessions_tv_pred$paid.brand+
-                            I(channel_sessions_tv_pred$direct.net.home^.5)+
-                            I(channel_sessions_tv_pred$direct.home^.5)+
-                            I(channel_sessions_tv_pred$organic.net.home^.5)+
-                            I(channel_sessions_tv_pred$organic.home^.5))
-                            # I(channel_sessions_tv_pred$paid.brand^.5)
-xreg_matrix=xreg_matrix[,-1]
-
-
+xreg_matrix<-model.matrix(formula(lm_fit))
 
 tv_arima=auto.arima(channel_sessions_tv_pred$tv.spend,xreg=xreg_matrix,
                     allowdrift=FALSE,allowmean=FALSE,stepwise=FALSE,approx=FALSE)

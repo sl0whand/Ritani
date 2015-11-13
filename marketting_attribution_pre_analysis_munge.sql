@@ -42,3 +42,29 @@ HAVING state LIKE '%shipped%' OR state LIKE '%accepted%' OR state LIKE '%deliver
 
 ;
 
+
+SELECT order_number, name AS channel, state,
+ max(total) AS revenue, count(*) as session_count
+FROM (
+		SELECT channel_id, clickstream_id, session_id
+		FROM channel_touchpoints
+	) ct INNER JOIN (
+		SELECT id, name, has_attributed_revenue
+		FROM channels
+	) ch ON ct.channel_id=ch.id
+    INNER JOIN (
+		SELECT id, pre_purchase
+		FROM sessions
+        WHERE pre_purchase=1
+   ) se ON ct.session_id=se.id
+	INNER JOIN (
+		SELECT id, order_number, total, state
+		FROM clickstreams
+    ) cl ON ct.clickstream_id=cl.id
+GROUP BY order_number, channel
+HAVING state LIKE '%shipped%' OR state LIKE '%accepted%' OR state LIKE '%delivered%'
+		OR state LIKE '%store%' OR state LIKE '%charged%' OR state LIKE '%authorized%'
+        OR state LIKE '%shipped%'
+
+;
+
