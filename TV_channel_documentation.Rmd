@@ -1,0 +1,69 @@
+---
+title: "TV Channel Forecast Documentation"
+author: "Jeffrey Uslan"
+date: "November 13, 2015"
+output: word_document
+---
+
+This documentation will serve as guide to reproduce work done on modeling TV spending impact on site visits via several channel. The scripts of import are the following: \n
+
+* tv_channel_models_data_munge.R 
+* report_functions.R 
+* TV_channel_Arima_forecast_uploader.R 
+* TV_channel_models_lite.Rmd 
+
+
+
+### tv_channel_models_data_munge.R
+
+At present, this script pulls TV Spending  and Gross Merchandising Value data from "tvanalysis_wgmv.xlsx" and site visit data from a google sheet called "channeldata with home". Ideally, these data will be pulled from a data base where they are updated, in uniform format, so the dependent analyses will be dynamically updated. 
+
+These data sources are then processed into a single data frame for easy processing in the scripts following.
+
+
+### report_functions.R
+
+This script contatin many functions used in the report generator and spreadsheet creator. 
+
+
+### TV_channel_Arima_forecast_uploader.R
+
+This script creates a dataframe with the following columns:
+
+* Date
+* GMV
+* tv.spend
+* oganic.net.home
+* oganic.net.home.lift
+* oganic.net.home.lift.low.bound
+* oganic.net.home.lift.upper.bound
+* oganic.home
+* oganic.home.lift
+* oganic.home.lift.low.bound
+* oganic.home.lift.upper.bound
+* direct.net.home
+* direct.net.home.lift
+* direct.net.home.lift.low.bound
+* direct.net.home.lift.upper.bound
+* direct.home
+* direct.home.lift
+* direct.home.lift.low.bound
+* direct.home.lift.upper.bound
+* paid.brand
+* paid.brand.lift
+* paid.brand.lift.low.bound
+* paid.brand.lift.upper.bound
+
+The report elaborates further, but the lift values are only directionally accurate approximations. The lower and upper bounds and produced using the TV spending coefficient confidence interval endpoints with a 80% confidence level.
+
+
+
+
+### TV_channel_models_lite.Rmd
+
+This script must be run from Rstudio, an R integrated development environment. It will produce a presentation-ready report with diagnostics and model information in an appendix. 
+
+
+
+
+ 

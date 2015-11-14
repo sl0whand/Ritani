@@ -33,6 +33,7 @@ data_long=tbl_df(dbGetQuery(con,query))
 
 #ditching some data
 data_long$state=NULL
+data_long=data_long[-which(data_long$revenue==0),]
 data_long=data_long[-which(data_long$channel=="unknown"),]
 data_long=data_long[-which(data_long$channel=="tv"),]
 data_long=data_long[-which(data_long$channel=="session continuation"),]
@@ -69,7 +70,7 @@ channel_levels=levels(as.factor(data_long$channel))
 resampled_data_frame=data.frame()
 for (channel in channel_levels){
   ch_inds=which(data_long$channel==channel)
-  for (i in 1:round(30000/length(ch_inds))){
+  for (i in 1:round(60000/length(ch_inds))){
     temp=data_long[ch_inds,]
     temp$order_number=paste0(temp$order_number,i)
     resampled_data_frame=rbind(resampled_data_frame,temp)

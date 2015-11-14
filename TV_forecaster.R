@@ -62,13 +62,44 @@ cor(test_pred,testing$tv.spend)^2
  test_y=as.matrix(testing$tv.spend)
  cor(test_y,test_predictions)^2
  
+ str(formula(lm_fit))
+ lhs=gsub("I\\(","", formula(lm_fit)[2])
+ prop=gsub("I\\(","", formula(lm_fit)[1])
+ rhs=gsub("I\\(","", formula(lm_fit)[3])
+ rhs=gsub("\\(","", rhs)
+ rhs=gsub("\\)","", rhs)
  
- round(coef(fit),2)
+ temp_string=paste(lhs,prop,rhs)
+ 
+ temp=coef(fit)
+ rownames(temp) <- gsub("I\\(","", rownames(temp))
+ rownames(temp) <- gsub("\\(","", rownames(temp))
+ rownames(temp) <- gsub(")","", rownames(temp))
+ temp=data.frame(Variables=rownames(temp)[-1],Coefficients=as.numeric(temp[,1])[-1])
+ 
+ 
+ print(temp_string)
+ pander(temp,digits=10)
+ 
+#final fit of model applied to training and test set
+ 
+ all_x=model.matrix(formula(lm_fit),data=channel_sessions_tv_pred)
+ all_x=all_x[,-1]
+ all_predictions <- predict(fit, all_x)
+ channel_sessions_tv_pred$tv.spend.fit=all_predictions
+ cor(channel_sessions_tv_pred$tv.spend,all_predictions)^2
+ 
+ plot(all_predictions,channel_sessions_tv_pred$tv.spend)
+ 
+ 
+ 
+ 
+ 
  
  
 ######################################################
 # Validation is succesful no need to look further
-#####################################################
+######################################################
 
           
 
@@ -79,10 +110,23 @@ t=Box.test(resids)
 round(t$p.value,4)
 
 ##actual model fit
-xreg_matrix<-model.matrix(formula(lm_fit))
 
-tv_arima=auto.arima(channel_sessions_tv_pred$tv.spend,xreg=xreg_matrix,
-                    allowdrift=FALSE,allowmean=FALSE,stepwise=FALSE,approx=FALSE)
+# lm_fit=lm(data=channel_sessions_tv_pred,tv.spend~direct.net.home+direct.home+organic.net.home+organic.home+paid.brand+
+#             I(direct.net.home^.5)+I(direct.home^.5)+I(organic.net.home^.5)+I(organic.home^.5)+I(paid.brand^.5))
+xreg_matrix<-matrix(c(channel_sessions_tv_pred$direct.net.home,
+                       channel_sessions_tv_pred$direct.home,
+                       channel_sessions_tv_pred$organic.net.home,
+                       channel_sessions_tv_pred$organic.home,
+                       channel_sessions_tv_pred$paid.brand,
+                       I(channel_sessions_tv_pred$direct.net.home^.5),
+                       I(channel_sessions_tv_pred$direct.home^.5),
+                       I(channel_sessions_tv_pred$organic.net.home^.5),
+                       I(channel_sessions_tv_pred$organic.home^.5),
+                       I(channel_sessions_tv_pred$paid.brand^.5)),
+                    ncol=10)
+
+tv_arima=auto.arima(channel_sessions_tv_pred$tv.spend,xreg=xreg_matrix,allowdrift=FALSE,allowmean=FALSE,stationary=FALSE,
+                    stepwise=FALSE,approx=FALSE)
 arimaorder(tv_arima)
 coef(tv_arima)
 
@@ -130,6 +174,7 @@ for(i in 1:eff){
 }
 
 qplot(seq(1:length(MAE)),MAE)+theme_bw()+geom_smooth(method="lm")
+
 
 
 

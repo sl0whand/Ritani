@@ -42,7 +42,7 @@ step_pander=function(stepwise_model){
 
 
 
-# Produces a two graphs: one of the non-time-series models of the covariate against dependent
+# Produces two graphs: one of the non-time-series models of the covariate against dependent
 # The other plots the residuals of the stepwise model
 poly_plots=function(tv,study_var,poly_fit,stepwise_model){
   tmp_df=data.frame(tv.spend=tv,channel=study_var,poly=fitted(poly_fit),
@@ -71,14 +71,33 @@ stl_func=function(study_var,freq){
     ts_var=ts(study_var, frequency = round(freq/2))
     stl_obj=stl(ts_var, s.window="periodic",robust=TRUE)
   }
-  plot(stl_obj)+title(paste(title_paste,"Seasonal Trend Decomposition"))
+  plot(stl_obj)+title(paste("Sessions Seasonal Trend Decomposition"))
 } # stl_func
 
 
 
 #Fits the arima model- the auto.arima will select paramters via stepwise selection on AIC
 arima_func=function(stepwise_model,study_var,tv,freq){
-  # xreg_matrix<-model.matrix(formula(stepwise_model))
+  
+  
+  
+  #removing points with too much leverage from the model
+  high_leverage_points=which(study_var >mean(study_var,na.rm=TRUE)+4*sd(study_var,na.rm=TRUE))
+  if (length(high_leverage_points)>0) {
+    # print(study_var[high_leverage_points])
+    # print(tv[high_leverage_points])
+    
+      study_var[high_leverage_points]=NA
+      tv[high_leverage_points]=NA
+    
+    study_var=na.approx(study_var)
+    tv=na.approx(tv)
+    
+    # print(study_var[high_leverage_points])
+    # print(tv[high_leverage_points])
+  }
+  
+  #creating the exogeneous regressor matrix
   xreg_matrix<-model.matrix(study_var~tv+I(tv^2))
   xreg_matrix=xreg_matrix[,-1]
   
@@ -93,8 +112,8 @@ arima_func=function(stepwise_model,study_var,tv,freq){
   #Not allowing for seasonal component until we have two years of data
   #Forcing model calculations not to take any shortcuts
   #Not allowing mean nor drift to allow for easier integration in Excel *shudder*
-  tv_arima=auto.arima(ts_var,xreg=xreg_matrix,
-                          allowdrift=FALSE,allowmean=FALSE,stepwise=FALSE,approx=FALSE)
+  tv_arima=auto.arima(ts_var,xreg=xreg_matrix,allowdrift=FALSE,allowmean=FALSE,stationary=FALSE,
+                      stepwise=FALSE,approx=FALSE)
   
   #Finding and removing high leverage points 
   # high_resid_inds=which(tv_arima$residuals > (mean(tv_arima$residuals+3*sd(tv_arima$residuals))) |
@@ -172,7 +191,7 @@ arima_func_sub=function(tv_arima,stepwise_model,study_var,tv,freq){
   tmp_df=rbind(tmp_df,tv_arima_R2)
   rownames(tmp_df)[length(rownames(tmp_df))]="R2"
   names(tmp_df)="Values"
-  pander(tmp_df,style = "grid",caption ="ARIMX Model Performance Measures")
+  pander(tmp_df,style = "grid",caption ="ARIMX Model Performance Measures",digits=5)
   
   
 } # arima_func_sub
@@ -192,14 +211,10 @@ transformed_plot=function(tv_arima,tv,title_paste){
   #scratch code for finding point of diminishing returns
   lin_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))][1]
   sqr_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))][2]
-  # sqrt_coef=coef(tv_arima)[grep("tv",names(coef(tv_arima)))][3]
-  # tv_lim=max(tv)
-  # tv_dummy=seq(0,tv_lim,by=round(tv_lim/200))
+  
   session_dummy=lin_coef*tv+sqr_coef*tv^2
-  # +sqrt_coef*sqrt(tv_dummy)
-  
-  
-  conf=confint(tv_arima,level=.8)
+  #grabbing confidence interval endpoints for upper and lower bound estimation
+    conf=confint(tv_arima,level=.8)
   tv_rows=grep("tv",rownames(conf))
   lin_low=conf[tv_rows[1],1]
   lin_high=conf[tv_rows[1],2]
@@ -244,7 +259,8 @@ transformed_plot_by_date=function(channel_sessions_long,tv_arima,var_name){
   tv_lift_high=lin_high*channel_sessions_long$tv.spend+sqr_high*channel_sessions_long$tv.spend^2
   
   
-  temp_df=data.frame(date=channel_sessions_long$date,study_var=channel_sessions_long[,var_ind][[1]],tv_lift,tv_lift_low,tv_lift_high)
+  temp_df=data.frame(date=channel_sessions_long$date,study_var=channel_sessions_long[,var_ind][[1]],
+                     tv_lift,tv_lift_low,tv_lift_high)
   if (length(which(is.na(temp_df$date)))>0) temp_df=temp_df[-which(is.na(temp_df$date)),]
   
   
@@ -284,7 +300,7 @@ model_validation=function(tv_arima,study_var,tv,freq,date){
   
   eff=n-k-pred_hor
   if (eff<10) {
-    print("There are not enough data to validate this model. You must have at least 70 observations")
+    print("There are not enough data to validate this model.")
     return(NULL)
   }  
     
@@ -314,7 +330,8 @@ model_validation=function(tv_arima,study_var,tv,freq,date){
   }
   
   qplot(date[(k+pred_hor+1):n],MAPE)+theme_bw()+geom_smooth(method="lm")+
-    ggtitle(paste("ARIMA Model Validation, Forecast Window of",pred_hor))+ylab("Mean Absolute Percent Error")+xlab("Additional Training Points")
+    ggtitle(paste("ARIMA Model Validation, Forecast Window of",pred_hor))+ylab("Mean Absolute Percent Error")+
+    xlab("Training Period End")
   
 } # end of model_validation
 
@@ -328,8 +345,6 @@ add_forecast_to_df=function(channel_sessions_long,tv_arima,var_name,tv){
   na_inds=which(is.na(study_var))
   tv=channel_sessions_long$tv.spend[-na_inds]
   study_var=na.omit(study_var)
-  
-  
   
   #Fitting old values
   xreg_matrix<-model.matrix(study_var~tv+I(tv^2))

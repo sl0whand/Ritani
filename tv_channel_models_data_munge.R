@@ -44,7 +44,7 @@ for (lev in channel_home_levels) {
   
 }
 gs_channeldataroot[,3]=NULL
-channel_sessions_long=rbind(gs_channeldata,gs_channeldataroot)
+channel_sessions_long=rbind(gs_channeldata[,1:4],gs_channeldataroot[,1:4])
 channel_sessions_long[,4]=NULL
 channel_sessions_long=channel_sessions_long %>% rename(date=ga.date)
 channel_sessions_long=channel_sessions_long %>% rename(channel=ga.channelGrouping)
@@ -71,14 +71,7 @@ channel_sessions_long=rbind(channel_sessions_long,
                               mutate(channel="tv.spend"))
 
 
-# channel_sessions_long$year=strftime(channel_sessions_long$date,format="%y") 
-# channel_sessions_long$week=strftime(channel_sessions_long$date,format="%W") 
-# channel_sessions_long$date=as.Date(strptime(paste(channel_sessions_long$year,
-#                                                   (as.numeric(channel_sessions_long$week)*7),
-#                                                   sep=" "),format="%Y %j") +years(2000))
-# 
-
-#Forcing Mondays
+#Forcing Mondays to combine with weekly tv data later
 channel_sessions_long$weekdays=weekdays(channel_sessions_long$date)
 levels(as.factor(channel_sessions_long$weekdays))
 
@@ -101,18 +94,22 @@ sun_inds=which(channel_sessions_long$weekdays=="Sunday")
 channel_sessions_long$date[sun_inds]=channel_sessions_long$date[sun_inds]-days(6)
 
 
-
+#functionally aggregating sessions by week
 channel_sessions_long=channel_sessions_long %>% group_by(date,channel) %>% 
   summarise(sessions=sum(sessions))
 
 
-#casting
+#casting to wide form
 channel_sessions_long=channel_sessions_long %>% spread(key=channel,value=sessions)
+
+#renaming troublesome variables
 names(channel_sessions_long) <- sub(" ", ".", names(channel_sessions_long))
 names(channel_sessions_long) <- sub(" ", ".", names(channel_sessions_long))
 
+
 #Replacing missing tv spend with 0
 channel_sessions_long$tv.spend[which(is.na(channel_sessions_long$tv.spend))]=0
+
 
 #fabricating variables
 channel_sessions_long$direct.net.home=channel_sessions_long$Direct-channel_sessions_long$Direct.home
@@ -122,17 +119,22 @@ channel_sessions_long$organic.home=channel_sessions_long$Organic.Search.home
 channel_sessions_long$paid.brand=channel_sessions_long$Branded.Paid.Search
 
 
-
+# Keeping only pertinent variables
 study_vars=c("date","tv.spend","direct.net.home","direct.home",
              "organic.net.home","organic.home",
              "paid.brand","GMV")
 study_cols=which(names(channel_sessions_long) %in% study_vars)
 channel_sessions_long=channel_sessions_long[,study_cols]  %>% arrange(date)
-#I don't believe the first observation is real
+#I don't believe the first observation is real- it must be an aggregation error
 channel_sessions_long=channel_sessions_long[-1,]
+#remove most recent sessions observation due to aggregation error (and recent week being incomplete)
+study_vars=c("direct.net.home","direct.home","organic.net.home","organic.home","paid.brand","GMV")
+for (var in study_vars) {
+  channel_sessions_long[max(which(!is.na(channel_sessions_long[,which(names(channel_sessions_long)==var)]))),which(names(channel_sessions_long)==var)]=NA
+}
 
+#save the rda to used later in the pipeline
  save(channel_sessions_long,file="channel_sessions_long.rda")
- # write.csv(channel_sessions_long,file="channel_sessions_long.csv")
- # gs_upload("channel_sessions_long.csv",sheet_title = "weekly_tv_channel_upload_dont_edit")
+ 
 
 

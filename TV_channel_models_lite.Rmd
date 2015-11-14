@@ -19,6 +19,7 @@ library(stats)
 library(pander)
 library(TTR)
 library(googlesheets)
+library(zoo)
 
 source("report_functions.R")
 
