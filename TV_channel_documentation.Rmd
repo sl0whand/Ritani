@@ -33,6 +33,7 @@ This script creates a dataframe with the following columns:
 * Date
 * GMV
 * tv.spend
+* tv_forecasted
 * oganic.net.home
 * oganic.net.home.lift
 * oganic.net.home.lift.low.bound
