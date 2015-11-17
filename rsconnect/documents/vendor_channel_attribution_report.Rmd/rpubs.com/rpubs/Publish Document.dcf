@@ -1,0 +1,7 @@
+name: Publish Document
+account: rpubs
+server: rpubs.com
+bundleId:
+        https://api.rpubs.com/api/v1/document/126696/b6a27e8d38ca4a74b208f3c25a19d15a
+url: http://rpubs.com/jeffreyuslan/126696
+when: 1447797304.47124

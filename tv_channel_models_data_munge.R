@@ -112,23 +112,28 @@ channel_sessions_long$tv.spend[which(is.na(channel_sessions_long$tv.spend))]=0
 
 
 #fabricating variables
-channel_sessions_long$direct.net.home=channel_sessions_long$Direct-channel_sessions_long$Direct.home
+channel_sessions_long$direct.all=channel_sessions_long$Direct
+channel_sessions_long$direct.net.home=channel_sessions_long$direct.all-channel_sessions_long$Direct.home
 channel_sessions_long$direct.home=channel_sessions_long$Direct.home
 channel_sessions_long$organic.net.home=channel_sessions_long$Organic.Search-channel_sessions_long$Organic.Search.home
-channel_sessions_long$organic.home=channel_sessions_long$Organic.Search.home
+channel_sessions_long$organic.all=channel_sessions_long$Organic.Search.home
+channel_sessions_long$organic.home=channel_sessions_long$organic.all
+
 channel_sessions_long$paid.brand=channel_sessions_long$Branded.Paid.Search
 
 
 # Keeping only pertinent variables
-study_vars=c("date","tv.spend","direct.net.home","direct.home",
-             "organic.net.home","organic.home",
+study_vars=c("date","tv.spend","direct.net.home","direct.home","direct.all",
+             "organic.net.home","organic.home","organic.all",
              "paid.brand","GMV")
 study_cols=which(names(channel_sessions_long) %in% study_vars)
 channel_sessions_long=channel_sessions_long[,study_cols]  %>% arrange(date)
 #I don't believe the first observation is real- it must be an aggregation error
 channel_sessions_long=channel_sessions_long[-1,]
 #remove most recent sessions observation due to aggregation error (and recent week being incomplete)
-study_vars=c("direct.net.home","direct.home","organic.net.home","organic.home","paid.brand","GMV")
+study_vars=c("direct.net.home","direct.home","direct.all",
+             "organic.net.home","organic.home","organic.all",
+             "paid.brand","GMV")
 for (var in study_vars) {
   channel_sessions_long[max(which(!is.na(channel_sessions_long[,which(names(channel_sessions_long)==var)]))),which(names(channel_sessions_long)==var)]=NA
 }

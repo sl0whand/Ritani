@@ -61,7 +61,7 @@ data_long=data_long %>% group_by(order_number,channel) %>%
   summarise(revenue=max(revenue),session_count=sum(session_count))
 
 #recheck channel distribution with corrections
-data_long %>% group_by(channel) %>%  summarise(count=n()) %>% arrange(desc(count))
+data_long %>% group_by(channel) %>%  summarise(count=n(),revenue=mean(revenue)) %>% arrange(desc(count))
 data_long %>% group_by(order_number) %>%  summarise(count=n()) %>% arrange(desc(count))
 
 #need to resample to adjust for class imbalance
@@ -70,7 +70,7 @@ channel_levels=levels(as.factor(data_long$channel))
 resampled_data_frame=data.frame()
 for (channel in channel_levels){
   ch_inds=which(data_long$channel==channel)
-  for (i in 1:round(60000/length(ch_inds))){
+  for (i in 1:round(10000/length(ch_inds))){
     temp=data_long[ch_inds,]
     temp$order_number=paste0(temp$order_number,i)
     resampled_data_frame=rbind(resampled_data_frame,temp)
@@ -80,7 +80,7 @@ for (channel in channel_levels){
 resampled_data_frame %>% group_by(channel) %>%  summarise(count=n(),revenue=mean(revenue)) %>% arrange(desc(count))
 
 # putting data in wide form
-data_wide=resampled_data_frame %>%   spread(key=channel,value=session_count)
+data_wide=resampled_data_frame %>%  spread(key=channel,value=session_count)
 
 #fix column names
 names(data_wide) <- sub(" ", ".", names(data_wide))
@@ -127,7 +127,7 @@ high_inds=which(data_wide$revenue> (mean(data_wide$revenue)+10*sd(data_wide$reve
 row_sums=apply(data_wide[,2:8],1,function(x){sum(x)})
 
 #check for implict relationship between total sessions and total revenue
-cor(row_sums,data_wide$revenue)
+round(cor(row_sums,data_wide$revenue),2)
 qplot(row_sums,data_wide$revenue)+geom_smooth()+theme_bw()+
   xlab("Sessions")+ylab("Purchase Total (Dollars)")
 
@@ -164,7 +164,7 @@ corrplot(cor(channels_invert))
 
 
 
-
+#Checking out various models
 all_model_no_interaction=lm(revenue~.+0,data=data_wide)
 summary(all_model_no_interaction)
 round(coef(all_model_no_interaction)/sum(coef(all_model_no_interaction)),2)
@@ -182,13 +182,19 @@ round(coef(all_model_no_interaction_invert)/sum(coef(all_model_no_interaction_in
 #The front runner
 all_model_dummy=lm(revenue~.*.+0,data=channels_dummy)
 summary(all_model_dummy)
+round(coef(all_model_dummy)[1:7]/sum(coef(all_model_dummy)[1:7]),2)
+
 
  stepwise_model=step(all_model_dummy,k=log(nrow(channels_dummy)))
  summary(stepwise_model)
- 
- anova(stepwise_model,all_model_no_interaction_dummy, test="Chi")
+ #low p-value implies the models are not statistically different - may as well take simpler model
+ anova(stepwise_model,all_model_dummy, test="Chi")
+ #low p-value implies the models are not statistically different - may as well take simpler model
+ anova(all_model_dummy,all_model_no_interaction_dummy, test="Chi")
  
  round(coef(stepwise_model)[1:7]/sum(coef(stepwise_model)[1:7]),2)
+
+ 
  
 
 

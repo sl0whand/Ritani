@@ -42,6 +42,10 @@ This script creates a dataframe with the following columns:
 * oganic.home.lift
 * oganic.home.lift.low.bound
 * oganic.home.lift.upper.bound
+* oganic.all
+* oganic.all.lift
+* oganic.all.lift.low.bound
+* oganic.all.lift.upper.bound
 * direct.net.home
 * direct.net.home.lift
 * direct.net.home.lift.low.bound
@@ -50,6 +54,10 @@ This script creates a dataframe with the following columns:
 * direct.home.lift
 * direct.home.lift.low.bound
 * direct.home.lift.upper.bound
+* direct.all
+* direct.all.lift
+* direct.all.lift.low.bound
+* direct.all.lift.upper.bound
 * paid.brand
 * paid.brand.lift
 * paid.brand.lift.low.bound

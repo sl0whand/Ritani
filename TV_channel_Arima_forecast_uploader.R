@@ -45,7 +45,7 @@ na_inds=which(is.na(study_var))
 tv=channel_sessions_long$tv.spend[-na_inds]
 study_var=na.omit(study_var)
 date=channel_sessions_long$date[-na_inds]
-title_paste="Organic Net of Home"
+
 
 ###ARIMAX model with TV spend
   
@@ -77,7 +77,7 @@ tv=channel_sessions_long$tv.spend[-na_inds]
 study_var=na.omit(study_var)
 date=channel_sessions_long$date[-na_inds]
 
-title_paste="Organic Home"
+
 
 ###ARIMAX model with TV spend
   
@@ -93,6 +93,34 @@ channel_sessions_long=channel_sessions_long %>% rename(organic.home.lift=tv_lift
 channel_sessions_long=channel_sessions_long %>% rename(organic.home.lift.low.bound=tv_lift_low_bound) 
 channel_sessions_long=channel_sessions_long %>% rename(organic.home.lift.upper.bound=tv_lift_upper_bound) 
 
+## Organic All Channel
+#limiting variables to corresponding non-missing values
+var_name="organic.all"
+study_var=channel_sessions_long[,which(names(channel_sessions_long)==var_name)][[1]]
+
+
+na_inds=which(is.na(study_var))
+tv=channel_sessions_long$tv.spend[-na_inds]
+study_var=na.omit(study_var)
+date=channel_sessions_long$date[-na_inds]
+
+
+
+###ARIMAX model with TV spend
+
+tv_arima=arima_func(stepwise_model,study_var,tv,freq)
+
+###Forecasts
+
+channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,var_name)
+
+#renaming variables to be like this channel
+channel_sessions_long=channel_sessions_long %>% rename(organic.all.forecast=forecast) 
+channel_sessions_long=channel_sessions_long %>% rename(organic.all.lift=tv_lift) 
+channel_sessions_long=channel_sessions_long %>% rename(organic.all.lift.low.bound=tv_lift_low_bound) 
+channel_sessions_long=channel_sessions_long %>% rename(organic.all.lift.upper.bound=tv_lift_upper_bound) 
+
+
 # Plots for sanity check
 # ggplot(channel_sessions_long)+
 #   geom_line(aes(x=date,y=organic.home))+
@@ -102,14 +130,10 @@ channel_sessions_long=channel_sessions_long %>% rename(organic.home.lift.upper.b
 #limiting variables to corresponding non-missing values
 var_name="direct.net.home"
 study_var=channel_sessions_long[,which(names(channel_sessions_long)==var_name)][[1]]
-
-
 na_inds=which(is.na(study_var))
 tv=channel_sessions_long$tv.spend[-na_inds]
 study_var=na.omit(study_var)
 date=channel_sessions_long$date[-na_inds]
-
-title_paste="Direct Net Home"
 
 
 ###ARIMAX model with TV spend
@@ -144,7 +168,6 @@ tv=channel_sessions_long$tv.spend[-na_inds]
 study_var=na.omit(study_var)
 date=channel_sessions_long$date[-na_inds]
 
-title_paste="Direct Home"
 
 ###ARIMAX model with TV spend
   
@@ -168,6 +191,36 @@ channel_sessions_long=channel_sessions_long %>% rename(direct.home.lift.upper.bo
 # ggplot(channel_sessions_long)+
 #   geom_line(aes(x=date,y=direct.home))+
 #   geom_line(aes(x=date,y=direct.home.lift))
+
+
+## Direct All Channel
+#limiting variables to corresponding non-missing values
+var_name="direct.all"
+study_var=channel_sessions_long[,which(names(channel_sessions_long)==var_name)][[1]]
+
+na_inds=which(is.na(study_var))
+tv=channel_sessions_long$tv.spend[-na_inds]
+study_var=na.omit(study_var)
+date=channel_sessions_long$date[-na_inds]
+
+
+###ARIMAX model with TV spend
+
+tv_arima=arima_func(stepwise_model,study_var,tv,freq)
+
+
+###Forecasts
+
+
+channel_sessions_long=add_forecast_to_df(channel_sessions_long,tv_arima,var_name)
+#renaming variables to be like this channel
+
+
+channel_sessions_long=channel_sessions_long %>% rename(direct.all.forecast=forecast) 
+channel_sessions_long=channel_sessions_long %>% rename(direct.all.lift=tv_lift) 
+channel_sessions_long=channel_sessions_long %>% rename(direct.all.lift.low.bound=tv_lift_low_bound) 
+channel_sessions_long=channel_sessions_long %>% rename(direct.all.lift.upper.bound=tv_lift_upper_bound) 
+
 
 
 ## Paid Brand Channel
@@ -203,7 +256,7 @@ channel_sessions_long=channel_sessions_long %>% rename(paid.brand.lift.upper.bou
 ########
 #implementing tv predicting arimax
 #####
-channel_sessions_tv_pred=na.omit(channel_sessions_long[,3:8])
+channel_sessions_tv_pred=na.omit(channel_sessions_long[,c(3,5,6,7,9,10)])
 xreg_matrix<-matrix(c(channel_sessions_tv_pred$direct.net.home,
                       channel_sessions_tv_pred$direct.home,
                       channel_sessions_tv_pred$organic.net.home,
@@ -219,7 +272,7 @@ xreg_matrix<-matrix(c(channel_sessions_tv_pred$direct.net.home,
 tv_predict=auto.arima(channel_sessions_tv_pred$tv.spend,xreg=xreg_matrix,allowdrift=FALSE,allowmean=FALSE,stationary=FALSE,
                       stepwise=FALSE,approx=FALSE)
 
-channel_sessions_tv_pred2=na.omit(channel_sessions_long[,4:8])
+channel_sessions_tv_pred2=na.omit(channel_sessions_long[,c(3,5,6,7,9,10)])
 xreg_matrix_next=xreg_matrix<-matrix(c(channel_sessions_tv_pred2$direct.net.home,
                                        channel_sessions_tv_pred2$direct.home,
                                        channel_sessions_tv_pred2$organic.net.home,

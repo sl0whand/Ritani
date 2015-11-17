@@ -1,0 +1,298 @@
+---
+title: "Vendor Channel Attribution"
+author: "Jeffrey Uslan"
+date: "November 17, 2015"
+output: html_document
+---
+
+#Synopsis
+This report explores the contribution of site visit touch points on order completion. The purpose of this exploration is to assign appropriate "credit" for a purchase to the appropriate vendors. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#Initial data munging
+library(tidyr)
+library(dplyr)
+library(corrplot)
+library(glmnet)
+library(readr)
+library(caret)
+library(randomForest)
+library(pander)
+source("Ritani_log_analysis_DB_connection.R")
+###
+
+
+
+#####imorting purchasers
+query=paste("
+            SELECT order_number, name AS channel, state,
+            max(total) AS revenue, count(*) as session_count
+            FROM (
+            SELECT channel_id, clickstream_id, session_id
+            FROM channel_touchpoints
+            ) ct INNER JOIN (
+            SELECT id, name, has_attributed_revenue
+            FROM channels
+            ) ch ON ct.channel_id=ch.id
+            INNER JOIN (
+            SELECT id, pre_purchase
+            FROM sessions
+            WHERE pre_purchase=1
+            ) se ON ct.session_id=se.id
+            INNER JOIN (
+            SELECT id, order_number, total, state
+            FROM clickstreams
+            ) cl ON ct.clickstream_id=cl.id
+            GROUP BY order_number, channel
+            HAVING state LIKE '%shipped%' OR state LIKE '%accepted%' OR state LIKE '%delivered%'
+            OR state LIKE '%store%' OR state LIKE '%charged%' OR state LIKE '%authorized%'
+            OR state LIKE '%shipped%'
+            ")
+
+data_long=tbl_df(dbGetQuery(con,query))
+
+#ditching some data
+data_long$state=NULL
+data_long$revenue=NULL
+data_long$revenue=NULL
+data_long$purchaser=1
+
+# Importing non-purschasers
+non_purchaser_data=tbl_df(read_csv(file=gzfile('non-purchaser-channels.csv.gz'),col_names=FALSE))
+non_purchaser_data=non_purchaser_data %>% rename(Time=X1) 
+# non_purchaser_data$Time=NULL
+non_purchaser_data$X4=NULL
+non_purchaser_data$purchaser=0
+non_purchaser_data$session_count=1
+non_purchaser_data=non_purchaser_data %>% rename(order_number=X2) 
+non_purchaser_data=non_purchaser_data %>% rename(channel=X3)
+
+
+
+#omit visit within 30 minutes of each other
+non_purchaser_data=non_purchaser_data %>% arrange(order_number,channel,Time)
+
+non_purchaser_data=non_purchaser_data %>% group_by(order_number,channel) %>%
+  mutate(duration = c(1,diff(Time))*(60*24))
+short_visit_inds=which(non_purchaser_data$duration<30 & non_purchaser_data$duration>=0)
+# non_purchaser_data %>% group_by(channel,purchaser) %>%  summarise(sessions=n()) %>% arrange(channel,purchaser)
+# non_purchaser_data[-short_visit_inds,] %>% group_by(channel,purchaser) %>%  summarise(sessions=n()) %>% arrange(channel,purchaser)
+
+non_purchaser_data=non_purchaser_data[-short_visit_inds,]
+
+
+non_purchaser_data$duration=NULL
+non_purchaser_data$Time=NULL
+
+#combine data
+data_long=rbind(data_long,non_purchaser_data)
+
+
+
+# data_long$purchaser=as.factor(data_long$purchaser)
+
+#cleaning some unneccesary 
+data_long=data_long[-which(data_long$channel=="unknown"),]
+data_long=data_long[-which(data_long$channel=="social"),]
+data_long=data_long[-grep("retailer",data_long$channel),]
+data_long=data_long[-which(data_long$channel=="tv"),]
+data_long=data_long[-which(data_long$channel=="session continuation"),]
+
+#reassign some channel names
+disp_inds=grep("display",data_long$channel)
+data_long$channel[disp_inds]="display"
+
+email_inds=grep("email",data_long$channel)
+data_long$channel[email_inds]="email"
+
+email_inds=grep("paid",data_long$channel)
+data_long$channel[email_inds]="paid"
+
+email_inds=grep("organic",data_long$channel)
+data_long$channel[email_inds]="organic"
+
+#combine displays and combine emails by order
+data_long=data_long %>% group_by(order_number,channel) %>% 
+  summarise(session_count=sum(session_count),purchaser=first(purchaser))
+
+```
+
+
+#Exploration
+
+The table below shows how many users are present in the purchase group and non-purchaser group.
+```{r echo=FALSE}
+pander(data_long %>% group_by(purchaser) %>%  summarise(Users=n()) %>% arrange(desc(Users)))
+```
+
+The table below shows how users are distributed across each visit touch point and purchaser group. Note that that this tabulation does not account for users visiting multiple touch points, a common occurence.
+```{r echo=FALSE}
+#recheck channel distribution with corrections
+pander(data_long %>% group_by(channel,purchaser) %>%  summarise(Users=n()) %>% arrange(channel,purchaser))
+```
+
+
+
+```{r echo=FALSE}
+
+# putting data in wide form
+ # data_wide=resampled_data_frame %>%  spread(key=channel,value=session_count)
+data_wide=data_long %>%  spread(key=channel,value=session_count)
+
+#setting all missings to 0
+numeric_inds=sapply(data_wide,is.numeric)
+data_wide[,numeric_inds]=apply(data_wide[,numeric_inds],2,function(x){
+  na_inds=which(is.na(x))
+  if (length(na_inds)>0){
+    x[na_inds]=0  
+  } else {
+    x
+  }
+  x
+})
+
+#combining orders for total sessions by each channel
+data_wide=data_wide %>% group_by(order_number) %>%  summarise(purchaser=first(purchaser),affiliates=sum(affiliates),                                                             direct=sum(direct),display=sum(display),email=sum(email),                                                             organic=sum(organic),paid=sum(paid),referral=sum(referral))
+#order_number is irrelevant now
+data_wide$order_number=NULL
+
+
+##Sanity checks
+row_sums=apply(data_wide[,2:8],1,function(x){sum(x)})
+# summary(row_sums)
+# sd(row_sums)
+
+high_inds=which(row_sums> (mean(row_sums)+10*sd(row_sums)))
+if (length(high_inds)) data_wide=data_wide[-high_inds,]
+```
+
+The table below shows the mean number of sessions at each visit touch point across purchaser groups. T-tests were performed for each variable and all tests, except the display, show that the differences between purchaser groups are statistically significant. The display touch point had a p-value of 0.21- implying that the mean display sessions were not different between purchasers and non-purchasers.
+
+```{r echo=FALSE}
+row_sums=apply(data_wide[,2:8],1,function(x){sum(x)})
+data_wide$row_sums=row_sums
+pander(((data_wide %>% group_by(purchaser) %>% summarise(row_sums=mean(row_sums),
+                                                affiliates=mean(affiliates),
+                                                direct=mean(direct),
+                                                display=mean(display),
+                                                email=mean(email),
+                                                organic=mean(organic),
+                                                paid=mean(paid),
+                                                referral=mean(referral))))
+,digits=2)
+
+
+data_wide$row_sums=NULL
+```
+
+
+```{r echo=FALSE, eval=FALSE}
+#t test total sessions- ss diff
+t.test(as.vector(data_wide %>% filter(purchaser==0) %>% select(row_sums))[[1]],
+       as.vector(data_wide %>% filter(purchaser==1) %>% select(row_sums))[[1]])
+
+#t test affiliates- ss diff
+t.test(as.vector(data_wide %>% filter(purchaser==0) %>% select(affiliates))[[1]],
+       as.vector(data_wide %>% filter(purchaser==1) %>% select(affiliates))[[1]])
+#t test direct- ss diff
+t.test(as.vector(data_wide %>% filter(purchaser==0) %>% select(direct))[[1]],
+       as.vector(data_wide %>% filter(purchaser==1) %>% select(direct))[[1]])
+#t test display- no diff
+t.test(as.vector(data_wide %>% filter(purchaser==0) %>% select(display))[[1]],
+       as.vector(data_wide %>% filter(purchaser==1) %>% select(display))[[1]])
+#t test email- ss diff
+t.test(as.vector(data_wide %>% filter(purchaser==0) %>% select(email))[[1]],
+       as.vector(data_wide %>% filter(purchaser==1) %>% select(email))[[1]])
+#t test organic- ss diff
+t.test(as.vector(data_wide %>% filter(purchaser==0) %>% select(organic))[[1]],
+       as.vector(data_wide %>% filter(purchaser==1) %>% select(organic))[[1]])
+#t test paid- ss diff
+t.test(as.vector(data_wide %>% filter(purchaser==0) %>% select(paid))[[1]],
+       as.vector(data_wide %>% filter(purchaser==1) %>% select(paid))[[1]])
+#t test referral- ss diff
+t.test(as.vector(data_wide %>% filter(purchaser==0) %>% select(referral))[[1]],
+       as.vector(data_wide %>% filter(purchaser==1) %>% select(referral))[[1]])
+```
+
+```{r echo=FALSE, eval=FALSE}
+# prc=prcomp(data_wide[2:8], center = TRUE,
+                 # scale. = TRUE) 
+# plot(prc, type = "l")
+# summary(prc)
+# plot(prc$x[,1],prc$x[,2])
+```
+
+The graph below shows the correlative relationships of each variable.
+```{r echo=FALSE}
+corrplot(cor(data_wide[,1:8]))
+```
+
+# Modeling
+
+For validation purposes, the data were split into a training and test set. The split was made with 60% of the data alloted to model training and 40% to model testing.
+
+```{r echo=FALSE}
+#Checking out various models
+inTrain = createDataPartition(y=data_wide$purchaser, p = .6)[[1]]
+training = data_wide[ inTrain,]
+testing = data_wide[-inTrain,]
+```
+
+
+The regularized regression classification model had an accuracy of 0.7505 on the training data, 0.745 on the testing data, and 0.748 on all data.
+```{r echo=FALSE}
+fit1= lm(purchaser~.+0,data=training)
+
+
+x <- model.matrix(formula(fit1),data=training)
+y<- as.matrix(training$purchaser)
+fit<-glmnet(x,y, family="gaussian", alpha=0.9, lambda=0.0001,intercept=FALSE)
+# summarize the fit
+# coefficients(fit)
+# make predictions
+predictions <- predict(fit, x)
+predictions[which(predictions>1)]=1
+# summarize accuracy
+# confusionMatrix(y, round(predictions))
+
+
+#checking accuracy on test set
+x_test <- model.matrix(formula(fit1),data=testing)
+y_test<- as.matrix(testing$purchaser)
+predictions <- predict(fit, x_test)
+predictions[which(predictions>1)]=1
+# confusionMatrix(y_test, round(predictions))
+
+#checking accuracy over all
+x_all <- model.matrix(formula(fit1),data=data_wide)
+y_all<- as.matrix(data_wide$purchaser)
+predictions <- predict(fit, x_all)
+predictions[which(predictions>1)]=1
+# confusionMatrix(y_all, round(predictions))
+```
+
+
+
+The table below shows the coefficients produced by the linear classifier. These coefficients can be thought of as the additive probability of a purchase occuring per session.
+```{r echo=FALSE}
+coef_df=data.frame(Coefficients=coefficients(fit)[2:8])
+rownames(coef_df)=(coefficients(fit))@Dimnames[[1]][2:8]
+pander(coef_df,digits=2)
+```
+
+
+ The linear classifier coefficients do not immediately indicate the potency of each touch point as the distribution of sessions is different between touch points. To identify which touch points have the most predicitive power we fit a black box random forest classifier, a bootstrapped decision tree. We then extract the accuracy contributions. The figure below shows how much accuracy would be lost if a variable were to be removed.
+
+```{r echo=FALSE, warning=FALSE}
+data_wide$purchaser=as.factor(data_wide$purchaser)
+ modFit <- randomForest(purchaser ~. , data=data_wide, importance = TRUE)
+# rf_importances=importance(modFit, scale=FALSE)
+ # getTree(modFit, k=1, labelVar=TRUE)
+varImpPlot(modFit, type=1, scale=FALSE, main="Variable Importance")
+
+```
+
+
+
+
+
