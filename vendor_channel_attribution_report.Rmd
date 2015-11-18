@@ -10,6 +10,7 @@ This report explores the contribution of site visit touch points on order comple
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 #Initial data munging
+
 library(tidyr)
 library(dplyr)
 library(corrplot)
@@ -18,6 +19,11 @@ library(readr)
 library(caret)
 library(randomForest)
 library(pander)
+panderOptions('table.style',"simple")
+panderOptions('table.split.cells',"Inf")
+panderOptions('table.split.table',"Inf")
+
+
 source("Ritani_log_analysis_DB_connection.R")
 ###
 
@@ -214,12 +220,33 @@ t.test(as.vector(data_wide %>% filter(purchaser==0) %>% select(referral))[[1]],
        as.vector(data_wide %>% filter(purchaser==1) %>% select(referral))[[1]])
 ```
 
-```{r echo=FALSE, eval=FALSE}
-# prc=prcomp(data_wide[2:8], center = TRUE,
-                 # scale. = TRUE) 
-# plot(prc, type = "l")
-# summary(prc)
-# plot(prc$x[,1],prc$x[,2])
+```{r echo=FALSE}
+media_combo=apply(data_wide[,2:8],1,function(x){
+  combo=as.character(as.numeric(as.numeric(x)>0))
+  combo_word=""
+  for (l in combo) combo_word=paste0(combo_word,l)
+  combo_word
+})
+
+data_wide$media_combo=media_combo
+
+
+```
+
+The table below shows the 6 most prevalent combinations of touch points among non-purchasers and the average number of sessions within those touch points.
+```{r echo=FALSE}
+pander(data_wide %>% filter(purchaser==0) %>% group_by(media_combo) %>% mutate(Frequency=n()/length(which(data_wide$purchaser==0))) %>% summarise_each(funs(mean)) %>% arrange(desc(Frequency)) %>% head(),digits=2)
+
+```
+
+
+
+The table below shows the 6 most prevalent combinations of touch points among purchasers and the average number of sessions within those touch points.
+
+```{r echo=FALSE}
+pander(data_wide %>% filter(purchaser==1) %>% group_by(media_combo) %>% mutate(Frequency=n()/length(which(data_wide$purchaser==1))) %>% summarise_each(funs(mean)) %>% arrange(desc(Frequency)) %>% head(),digits=2)
+
+data_wide$media_combo=NULL
 ```
 
 The graph below shows the correlative relationships of each variable.
@@ -233,26 +260,28 @@ For validation purposes, the data were split into a training and test set. The s
 
 ```{r echo=FALSE}
 #Checking out various models
+set.seed(2)
 inTrain = createDataPartition(y=data_wide$purchaser, p = .6)[[1]]
 training = data_wide[ inTrain,]
 testing = data_wide[-inTrain,]
 ```
 
 
-The regularized regression classification model had an accuracy of 0.7505 on the training data, 0.745 on the testing data, and 0.748 on all data.
+The regularized regression classification model had an accuracy of 0.744 on the training data, 0.754 on the testing data, and 0.748 on all data.
 ```{r echo=FALSE}
 fit1= lm(purchaser~.+0,data=training)
 
 
 x <- model.matrix(formula(fit1),data=training)
 y<- as.matrix(training$purchaser)
-fit<-glmnet(x,y, family="gaussian", alpha=0.9, lambda=0.0001,intercept=FALSE)
-# summarize the fit
+#DO NOT CHANGE ALPHA NOR LAMBDA
+fit<-glmnet(x,y, family="gaussian", alpha=0.9, lambda=0.001,intercept=FALSE)
+## summarize the fit
 # coefficients(fit)
-# make predictions
+## make predictions
 predictions <- predict(fit, x)
-predictions[which(predictions>1)]=1
-# summarize accuracy
+if (length(which(predictions>1))>0) predictions[which(predictions>1)]=1
+## summarize accuracy
 # confusionMatrix(y, round(predictions))
 
 
@@ -260,14 +289,14 @@ predictions[which(predictions>1)]=1
 x_test <- model.matrix(formula(fit1),data=testing)
 y_test<- as.matrix(testing$purchaser)
 predictions <- predict(fit, x_test)
-predictions[which(predictions>1)]=1
+if (length(which(predictions>1))>0) predictions[which(predictions>1)]=1
 # confusionMatrix(y_test, round(predictions))
 
 #checking accuracy over all
 x_all <- model.matrix(formula(fit1),data=data_wide)
 y_all<- as.matrix(data_wide$purchaser)
 predictions <- predict(fit, x_all)
-predictions[which(predictions>1)]=1
+if (length(which(predictions>1))>0) predictions[which(predictions>1)]=1
 # confusionMatrix(y_all, round(predictions))
 ```
 
@@ -291,6 +320,7 @@ data_wide$purchaser=as.factor(data_wide$purchaser)
 varImpPlot(modFit, type=1, scale=FALSE, main="Variable Importance")
 
 ```
+
 
 
 
