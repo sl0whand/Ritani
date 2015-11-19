@@ -190,7 +190,7 @@ if (length(high_aff)>0) data_wide=data_wide[-high_aff,]
 # if (length(high_paid)>0) data_wide=data_wide[-high_paid,]
 ```
 
-The table below shows the mean number of sessions at each visit touch point across purchaser groups. T-tests were performed for each variable and all tests, except the display, show that the differences between purchaser groups are statistically significant. The display touch point had a p-value of 0.21- implying that the mean display sessions were not different between purchasers and non-purchasers.
+The table below shows the mean number of sessions at each visit touch point across purchaser groups. T-tests were performed for each variable and all tests, except the display, show that the differences between purchaser groups are statistically significant. The display touch point had a p-value of 0.36- implying that the mean display sessions were not different between purchasers and non-purchasers.
 
 ```{r  }
 row_sums=apply(data_wide[,2:8],1,function(x){sum(x)})
@@ -308,9 +308,9 @@ The graph below shows the correlative relationships of each variable. That is, h
 ```{r  results="hide"}
 # corrplot(cor(data_wide[which(data_wide$purchaser==0),2:8]))
 # corrplot(cor(data_wide[which(data_wide$purchaser==1),2:8]))
-.First <- function() par.default <- par()
+old.par <- par(mar = c(0, 0, 0, 0))
 corrplot(cor(data_wide[,1:8]))
-par(.First)
+par(old.par)
 ```
 
 # Modeling
@@ -328,18 +328,19 @@ testing = data_wide[-inTrain,]
 
 
 ```{r  }
-fit1= lm(purchaser~.+0,data=training)
+fit1= lm(purchaser~0+.*.,data=training)
 
 
 x <- model.matrix(formula(fit1),data=training)
 y<- as.matrix(training$purchaser)
 #DO NOT CHANGE ALPHA NOR LAMBDA
-fit<-glmnet(x,y, family="gaussian", alpha=0.9, lambda=0.001,intercept=FALSE)
+fit<-glmnet(x,y, family="gaussian", alpha=1, lambda=0.0001,intercept=FALSE)
 ## summarize the fit
 # coefficients(fit)
 ## make predictions
 predictions <- predict(fit, x)
 if (length(which(predictions>1))>0) predictions[which(predictions>1)]=1
+if (length(which(predictions<0))>0) predictions[which(predictions<0)]=0
 ## summarize accuracy
 train_accuracy=round(length(which(round(predictions)==training$purchaser))/nrow(training),4)
 # confusionMatrix(y, round(predictions))
@@ -350,6 +351,7 @@ x_test <- model.matrix(formula(fit1),data=testing)
 y_test<- as.matrix(testing$purchaser)
 predictions <- predict(fit, x_test)
 if (length(which(predictions>1))>0) predictions[which(predictions>1)]=1
+if (length(which(predictions<0))>0) predictions[which(predictions<0)]=0
 test_accuracy=round(length(which(round(predictions)==testing$purchaser))/nrow(testing),4)
 # confusionMatrix(y_test, round(predictions))
 
@@ -358,16 +360,17 @@ x_all <- model.matrix(formula(fit1),data=data_wide)
 y_all<- as.matrix(data_wide$purchaser)
 predictions <- predict(fit, x_all)
 if (length(which(predictions>1))>0) predictions[which(predictions>1)]=1
+if (length(which(predictions<0))>0) predictions[which(predictions<0)]=0
 all_accuracy=round(length(which(round(predictions)==data_wide$purchaser))/nrow(data_wide),4)
 # confusionMatrix(y_all, round(predictions))
 ```
 
-The regularized regression classification model has an accuracy of `r train_accuracy` on the training data, `r test_accuracy` on the testing data, and `r all_accuracy` on all data.
+The regularized regression classification model has an accuracy of `r train_accuracy` on the training data, `r test_accuracy` on the testing data, and `r all_accuracy` combined.
 
 
-The table below shows the coefficients produced by the linear classifier. These coefficients can be thought of as the additive probability, per session, of a purchase occuring.
+The table below shows the coefficients produced by the linear classifier. Only non-interaction terms are listed, the effects of touch point negation have been isolated and removed. These coefficients can be thought of as the additive probability, per session, of a purchase occuring.
 ```{r  }
-fit<-glmnet(x_all,y_all, family="gaussian", alpha=0.9, lambda=0.001,intercept=FALSE)
+fit<-glmnet(x_all,y_all, family="gaussian", alpha=1, lambda=0.0001,intercept=FALSE)
 coef_df=data.frame(Coefficients=coefficients(fit)[2:8])
 rownames(coef_df)=(coefficients(fit))@Dimnames[[1]][2:8]
 pander(coef_df)
@@ -375,10 +378,11 @@ pander(coef_df)
 
 The graphs below show how the values for each touch point contribute to the purchase status of a user. This comparison is done for observed values and predicted values from the model.
 
-```{r  }
+```{r  fig.height=10}
 
 predict_all <- predict(fit, x_all)
 if (length(which(predict_all>1))>0) predict_all[which(predict_all>1)]=1
+if (length(which(predict_all<0))>0) predict_all[which(predict_all<0)]=0
 predict_all=as.numeric(predict_all)
 plotData <- lapply(names(data_wide[,2:8]), function(x){
   out <- data.frame(
@@ -392,14 +396,18 @@ plotData <- lapply(names(data_wide[,2:8]), function(x){
   out
 })
 plotData <- do.call(rbind,plotData)
+ # plotData$`Actual Purchase` <-as.character(c(plotData$purchaser[which(plotData$type=="Observed")],plotData$purchaser[which(plotData$type=="Observed")]))
 
-ggplot(plotData)+theme_bw()+geom_point(aes(x=value,y=purchaser))+geom_smooth(aes(x=value,y=purchaser),fill=NA)+facet_grid(type ~ var,scales="free_x") + coord_cartesian(ylim=c(-0.05,1.05)) + xlab("Sessions") + ylab("Purchase Made")
+
+# plotData=plotData[-which(plotData$value==0),]
+
+ggplot(plotData)+theme_bw()+geom_point(aes(x=value,y=purchaser),size=.8)+geom_smooth(aes(x=value,y=purchaser),fill=NA)+facet_grid(type ~ var ,scales="free_x") + coord_cartesian(ylim=c(-0.05,1.05)) + xlab("Sessions") + ylab("Purchase Made")
 
 
 ```
 
 
- The linear classifier coefficients do not immediately indicate the potency of each touch point as the distribution of sessions is different between touch points. To identify which touch points have the most predicitive power we fit a random forest classifier, a bootstrapped decision tree. We then extract the accuracy contributions. The figure below shows how much accuracy would be lost if a variable were to be removed.
+ The linear classifier coefficients do not immediately indicate the predicitive power of each touch point, as the distribution of sessions is different between touch points. To identify which touch points have the most predicitive power we fit a random forest classifier, a bootstrapped decision tree. We then extract the accuracy contributions. The figure below shows how much accuracy would be lost if a variable were to be removed.
 
 ```{r    }
 data_wide$purchaser=as.factor(data_wide$purchaser)

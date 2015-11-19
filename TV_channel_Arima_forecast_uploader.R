@@ -293,11 +293,30 @@ fcast_pred=fcast2[['mean']]
 last_non_na_channel=max(which(!is.na(channel_sessions_long$direct.net.home)))
 channel_sessions_long$tv_forecasted=rep(NA,nrow(channel_sessions_long))
 channel_sessions_long$tv_forecasted[(last_non_na_channel-length(fcast_pred)+1):last_non_na_channel]=fcast_pred
+
+
+
+##manually chaning the order of the columns
+channel_sessions_long=channel_sessions_long %>% select(date,GMV,tv.spend,tv_forecasted,
+            organic.all,organic.all.forecast,organic.all.lift,organic.all.lift.low.bound,organic.all.lift.upper.bound,
+            organic.net.home,organic.net.home.forecast,organic.net.home.lift,organic.net.home.lift.low.bound,organic.net.home.lift.upper.bound,
+            organic.home,organic.home.forecast,organic.home.lift,organic.home.lift.low.bound,organic.home.lift.upper.bound,
+            direct.all,direct.all.forecast,direct.all.lift,direct.all.lift.low.bound,direct.all.lift.upper.bound,
+            direct.net.home,direct.net.home.forecast,direct.net.home.lift,direct.net.home.lift.low.bound,direct.net.home.lift.upper.bound,
+            direct.home,direct.home.forecast,direct.home.lift,direct.home.lift.low.bound,direct.home.lift.upper.bound,
+            paid.brand,paid.brand.sessions.forecast,paid.brand.lift,paid.brand.lift.low.bound,paid.brand.lift.upper.bound)
+
+channel_sessions_long=unrowname(channel_sessions_long)
+#saving copy to archive
+write.csv(channel_sessions_long,
+          file=paste0("C:\\TV_forecast_archive\\weekly_tv_channel_with_forecasts",
+                     as.character(Sys.Date()),".csv"),row.names=FALSE)
+
+
 #saving a dummy csv to be uploaded to google sheet  
-write.csv(channel_sessions_long,file="temp.csv")
+write.csv(channel_sessions_long,"temp.csv",row.names=FALSE)
 #uploading google sheet to be named with date of run
 gs_upload("temp.csv",
           sheet_title =paste("weekly_tv_channel_with_forecasts",as.character(Sys.time()),sep="_"))
 
-   
 
