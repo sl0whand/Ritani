@@ -42,6 +42,9 @@ options(continue="... ")
   return(rbind(x,y))
 }
 
+attach(.env)
+
+
 .First <- function(){
     cat("\nWelcome at", date(), "\n") 
 }
@@ -51,7 +54,7 @@ options(continue="... ")
   cat("\nGoodbye at ", date(), "\n")
 }
 
-set.seed(1234)
+set.seed(2)
 .First <- function() cat("\n   Welcome to R!\n\n")
 .Last <- function()  cat("\n   Goodbye!\n\n")
 
