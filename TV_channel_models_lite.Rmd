@@ -3,6 +3,11 @@ title: "TV Spending Impact on Site Visits"
 output: html_document
 ---
 
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.width=12, fig.height=8,
+                      echo=FALSE, warning=FALSE, message=FALSE,fig.align='center')
+```
+
 #Synopsis
 
 This report explores how investing in TV advertising affects site visits. The report will look into seven primary sources of site traffic: organic net of home, organic home, organic all, direct net of home, direct home, direct all, and paid brand. A time-series model will be fit for each channel. This will allow us to isolate the effect of tv spending on site visits from the natural trend of those channels had no spending occured. The tv spending contribution will be considered the directionally accurate lift effect.
@@ -20,6 +25,10 @@ library(pander)
 library(TTR)
 library(googlesheets)
 library(zoo)
+panderOptions('table.style',"simple")
+panderOptions('table.split.cells',"Inf")
+panderOptions('table.split.table',"Inf")
+panderOptions('digits',"2")
 
 source("report_functions.R")
 

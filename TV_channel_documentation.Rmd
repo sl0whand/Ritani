@@ -16,7 +16,7 @@ This documentation will serve as guide to reproduce work done on modeling TV spe
 
 ### tv_channel_models_data_munge.R
 
-At present, this script pulls TV Spending  and Gross Merchandising Value data from "tvanalysis_wgmv.xlsx" and site visit data from a google sheet called "channeldata with home". Ideally, these data will be pulled from a data base where they are updated, in uniform format, so the dependent analyses will be dynamically updated. 
+At present, this script pulls TV Spending  and Gross Merchandising Value data from "tvanalysis_wgmv.xlsx" and site visit data from a google sheet called "channeldata with home". Ideally, these data will be pulled from a data base where they are updated, in consistent format, so the dependent analyses will be dynamically updated. 
 
 These data sources are then processed into a single data frame for easy processing in the scripts following.
 
@@ -65,7 +65,7 @@ This script creates a dataframe with the following columns:
 
 The report elaborates further, but the lift values are only directionally accurate approximations. The lower and upper bounds and produced using the TV spending coefficient confidence interval endpoints with a 80% confidence level.
 
-
+This data frame is uploaded to a google sheet. In the future this should save to a excel workbook or csv on the commonly accessible folder or to a Ritani google account.
 
 
 ### TV_channel_models_lite.Rmd
